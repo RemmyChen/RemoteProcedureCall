@@ -20,18 +20,21 @@ try:
     #     Make sure file exists and is readable
     #
     filename = sys.argv[1]
+
     if (not os.path.isfile(filename)):
         print >> sys.stderr, "Path %s does not designate a file" % filename
         raise "No file named " + filename
+
     if (not os.access(filename, os.R_OK)):
         print >> sys.stderr, "File %s is not readable" % filename
         raise "File " + filename + " not readable"
 
+
     #
     #     Parse declarations into a Python dictionary
     #
-
     decls = json.loads(subprocess.check_output(["./idl_to_json", filename]))
+
 
     #
     # Loop printing each function signature
@@ -49,5 +52,4 @@ try:
 
 except Exception as e:
     print >> sys.stderr, "Usage: %s <idlfilename>" % sys.argv[0]
-    print e
-    
+

@@ -208,10 +208,8 @@ void getFunctionNameFromStream(char *buffer, unsigned int bufSize) {
   bool readnull;
   ssize_t readlen;             // amount of data read from socket
   
-  //
   // Read a message from the stream
   // -1 in size below is to leave room for null
-  //
   readnull = false;
   bufp = buffer;
   for (i=0; i< bufSize; i++) {
@@ -227,24 +225,19 @@ void getFunctionNameFromStream(char *buffer, unsigned int bufSize) {
     }
   }
   
-  //
   // With TCP streams, we should never get a 0 length read
   // except with timeouts (which we're not setting in pingstreamserver)
   // or EOF
-  //
   if (readlen == 0) {
     c150debug->printf(C150RPCDEBUG,"simplefunction.stub: read zero length message, checking EOF");
     if (RPCSTUBSOCKET-> eof()) {
       c150debug->printf(C150RPCDEBUG,"simplefunction.stub: EOF signaled on input");
-
     } else {
       throw C150Exception("simplefunction.stub: unexpected zero length read without eof");
     }
   }
 
-  //
   // If we didn't get a null, input message was poorly formatted
-  //
   else if(!readnull) 
     throw C150Exception("simplefunction.stub: method name not null terminated or too long");
 
