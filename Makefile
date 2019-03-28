@@ -39,7 +39,7 @@ CPPFLAGS = -std=c++11 -g -Wall -Werror -I$(C150IDSRPC) -I$(C150LIB)
 LDFLAGS = 
 INCLUDES = $(C150LIB)c150streamsocket.h $(C150LIB)c150network.h $(C150LIB)c150exceptions.h $(C150LIB)c150debug.h $(C150LIB)c150utility.h $(C150LIB)c150grading.h $(C150IDSRPC)IDLToken.h $(C150IDSRPC)tokenizeddeclarations.h  $(C150IDSRPC)tokenizeddeclaration.h $(C150IDSRPC)declarations.h $(C150IDSRPC)declaration.h $(C150IDSRPC)functiondeclaration.h $(C150IDSRPC)typedeclaration.h $(C150IDSRPC)arg_or_member_declaration.h rpcproxyhelper.h rpcstubhelper.h simplefunction.idl arithmetic.idl floatarithmetic.idl 
 
-all: pingstreamclient pingstreamserver idldeclarationtst simplefunctionclient simplefunctionserver idl_to_json arithmeticclient arithmeticserver
+all: pingstreamclient pingstreamserver idldeclarationtst simplefunctionclient simplefunctionserver idl_to_json arithmeticclient arithmeticserver floatarithmeticclient floatarithmeticserver
 
 ########################################################################
 #
@@ -91,6 +91,13 @@ arithmeticclient: arithmeticclient.o rpcproxyhelper.o arithmetic.proxy.o $(C150A
 arithmeticserver: arithmetic.stub.o rpcserver.o rpcstubhelper.o arithmetic.o  $(C150AR) $(C150IDSRPCAR)  $(INCLUDES)
 	$(CPP) -o arithmeticserver rpcserver.o arithmetic.stub.o arithmetic.o rpcstubhelper.o $(C150AR) $(C150IDSRPCAR) 
 
+
+# floatarithmetic 
+floatarithmeticclient: floatarithmeticclient.o rpcproxyhelper.o floatarithmetic.proxy.o $(C150AR) $(C150IDSRPCAR)  $(INCLUDES)
+	$(CPP) -o floatarithmeticclient floatarithmeticclient.o rpcproxyhelper.o floatarithmetic.proxy.o  $(C150AR) $(C150IDSRPCAR) 
+
+floatarithmeticserver: floatarithmetic.stub.o rpcserver.o rpcstubhelper.o floatarithmetic.o  $(C150AR) $(C150IDSRPCAR)  $(INCLUDES)
+	$(CPP) -o floatarithmeticserver rpcserver.o floatarithmetic.stub.o floatarithmetic.o rpcstubhelper.o $(C150AR) $(C150IDSRPCAR) 
 
 ########################################################################
 #
@@ -232,6 +239,6 @@ idl_to_json: idl_to_json.o $(C150AR) $(C150IDSRPCAR)  $(INCLUDES)
 
 # clean up everything we build dynamically (probably missing .cpps from .idl)
 clean:
-	 rm -f pingstreamclient pingstreamserver idldeclarationtst idl_to_json simplefunctionclient simplefunctionserver  arithmeticclient arithmeticserver *.o *.json *.pyc
+	 rm -f pingstreamclient pingstreamserver idldeclarationtst idl_to_json simplefunctionclient simplefunctionserver  arithmeticclient arithmeticserver floatarithmeticclient floatarithmeticserver *.o *.json *.pyc
 
 
