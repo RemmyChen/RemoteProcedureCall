@@ -90,6 +90,8 @@ def write_stub_fn(filename, decls):
             fncall = "\t" + sig["return_type"] + " res = " + name + "(" + argnamestring + ");\n"
             fnskeleton = "void __" + name + "(" + argstring + ") " + OPEN + fncall + TODO + CLOSE
             f.write('%s\n' % fnskeleton)
+        badfn = "void __badFunction(const char *functionName) " + OPEN + "\tchar doneBuffer[5] = \"BAD\";\n\tRPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);\n" + CLOSE
+        f.write('%s\n' % badfn)
         dispatchfn = "void dispatchFunction() " + OPEN + TODO + CLOSE
         f.write('%s\n' % dispatchfn)
     f.close()
@@ -97,7 +99,7 @@ def write_stub_fn(filename, decls):
 
 if __name__ == "__main__":
     setup()
-
+    
 
 
 
