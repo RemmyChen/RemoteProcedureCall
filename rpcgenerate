@@ -5,6 +5,10 @@ import json
 import sys
 import os
 
+TODO = "\t" + "//TODO\n"
+OPEN = "{\n"
+CLOSE = "}\n"
+
 def setup():
     filename, decls = parse_idl()
     filename = filename.split(".")[0]
@@ -69,8 +73,8 @@ def write_proxy_fn(filename, decls):
         for name, sig in decls["functions"].items():
             args = sig["arguments"]
             argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
-            text = sig["return_type"] + " " + name + "(" + argstring + ") {\n//TODO\n}\n"
-            f.write('%s\n' % text)
+            fnskeleton = sig["return_type"] + " " + name + "(" + argstring + ") " + OPEN + TODO + CLOSE
+            f.write('%s\n' % fnskeleton)
     f.close()
 
 
@@ -82,8 +86,12 @@ def write_stub_fn(filename, decls):
         for name, sig in decls["functions"].items():
             args = sig["arguments"]
             argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
-            text = "void __" + name + "(" + argstring + ") {\n//TODO\n}\n"
-            f.write('%s\n' % text)
+            argnamestring = ', '.join([a["name"] for a in args])
+            fncall = "\t" + sig["return_type"] + " res = " + name + "(" + argnamestring + ");\n"
+            fnskeleton = "void __" + name + "(" + argstring + ") " + OPEN + fncall + TODO + CLOSE
+            f.write('%s\n' % fnskeleton)
+        dispatchfn = "void dispatchFunction() " + OPEN + TODO + CLOSE
+        f.write('%s\n' % dispatchfn)
     f.close()
 
 
