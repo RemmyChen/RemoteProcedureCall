@@ -5,9 +5,18 @@ import json
 import sys
 import os
 
-IDL_TO_JSON_EXECUTABLE = './idl_to_json'
+def setup():
+    filename, decls = parse_idl()
+    filename = filename.split(".")[0]
+    proxyname = filename + ".proxy.cpp"
+    stubname = filename + ".stub.cpp"
+    write_header(proxyname)
+    write_header(stubname)
+    write_proxy_fn(proxyname, decls)
+    write_stub_fn(stubname, decls)
 
 def parse_idl():
+    IDL_TO_JSON_EXECUTABLE = './idl_to_json'
     try:
         # Make sure invoked properly
         if len(sys.argv) != 2:
@@ -43,19 +52,44 @@ it doesn't exist, overwriting the file if it already
 exists.
 """
 def write_header(filename):
-    text = "hi!"
+    header = "//"+filename+"\n//authors: Jialu Wei, Remmy Chen\n"
+    includes = "#include <string>\nusing namespace std;\n#include \"strings.idl\"\n#include \"rpcproxyhelper.h\"\n#include <cstdio>\n#include <cstring>\n#include \"c150debug.h\"\n#include <iostream>\n#include <vector>\nusing namespace C150NETWORK;\n"
+    defines = "#define BUFSIZE 1024\n"
     with open(filename, 'w+') as f:
-        f.write('%s' % text)
+        f.write('%s\n' % header)
+        f.write('%s\n' % includes)
+        f.write('%s\n' % defines)
         f.close()
+
+"""
+Appends function contract skeletons to file.
+"""
+def write_proxy_fn(filename, decls):
+    with open(filename, 'a+') as f:
+        for name, sig in decls["functions"].items():
+            args = sig["arguments"]
+            argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
+            text = sig["return_type"] + " " + name + "(" + argstring + ") {\n//TODO\n}\n"
+            f.write('%s\n' % text)
+    f.close()
+
+
+"""
+Appends function contract skeletons to file.
+"""
+def write_stub_fn(filename, decls):
+    with open(filename, 'a+') as f:
+        for name, sig in decls["functions"].items():
+            args = sig["arguments"]
+            argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
+            text = "void __" + name + "(" + argstring + ") {\n//TODO\n}\n"
+            f.write('%s\n' % text)
+    f.close()
 
 
 if __name__ == "__main__":
-    filename, decls = print_functions()
-    filename = filename.split(".")[0]
-    proxyname = filename + ".proxy.cpp"
-    stubname = filename + ".stub.cpp"
-    write_header(proxyname)
-    write_header(stubname)
+    setup()
+
 
 
 
