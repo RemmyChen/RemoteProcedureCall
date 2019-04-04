@@ -24,7 +24,7 @@ const int serverArg = 1;
 // main
 int main(int argc, char *argv[]) {
     // set up debug
-    setUpDebugLogging("simplefunctionclientdebug.txt",argc, argv);
+    //setUpDebugLogging("arithmeticclientdebug.txt",argc, argv);
 
     // check command line args
     if (argc != 2) {
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     }
      
     // grademe
-    GRADEME(argc, argv);
+    // GRADEME(argc, argv);
     
     // call functions
     try {

@@ -1,0 +1,3 @@
+string concat(string s, string t);
+string concat3(string s, string t, string u);
+string upcase(string s);

@@ -1,23 +1,21 @@
 ///////////////////////////////////////////
 //
-//    floatarithmetic.proxy.cpp 
+//    strings.proxy.cpp 
 //   
 ///////////////////////////////////////////
+#include <string>
+using namespace std;
+#include "strings.idl"   // include the idl file
 
-// NOTE: we are only supporting float precision up to 6 decimal digits
-
-#include "floatarithmetic.idl"  // include idl file
 #include "rpcproxyhelper.h"
 #include <cstdio>
 #include <cstring>
 #include "c150debug.h"
 
 #include <iostream>   // std::cout
-#include <string>     // std::string, std::to_string
 
 
 using namespace C150NETWORK;  // for all the comp150 utilities 
-using namespace std;
 
 
 #define INT_LEN 4
@@ -64,11 +62,6 @@ void string_pack(struct Buffer_info *b, string s) {
   b->buf_len = new_buf_len;
 }
 
-void float_pack(struct Buffer_info *b,  float f1) {
-  string s = to_string(f1);
-  string_pack(b, s);
-}
-
 
 ///////////////////////////////
 //    deserialize 
@@ -91,82 +84,59 @@ string string_handler() {
   return res;
 }
 
-float float_handler() {
-  string s = string_handler();
-  return atof(s.c_str());
-}
-
 ///////////////////////////////
 //    call functions (remote)
 ///////////////////////////////
-
-float add(float x, float y) {
+string upcase(string s) {
   // construct msg
   struct Buffer_info b;
-  b.buf = (char*) malloc(1);
+  b.buf = (char*) malloc(10);
   b.buf_len = 0;
 
-  string_pack(&b, "add");
-  float_pack(&b, x);
-  float_pack(&b, y);
+  string_pack(&b, "upcase");
+  string_pack(&b, s);
 
   // send function signature and params
   RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  float res = float_handler();
-  return res;
-}
-
-float subtract(float x, float y) {
-  // construct msg
-  struct Buffer_info b;
-  b.buf = (char*) malloc(1);
-  b.buf_len = 0;
-
-  string_pack(&b, "subtract");
-  float_pack(&b, x);
-  float_pack(&b, y);
-
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  float res = float_handler();
+  free(b.buf); //
+  string res = string_handler();
   return res;
 }
 
 
-float multiply(float x, float y) {
-  // construct msg
+string concat(string s, string t) {
+    // construct msg
   struct Buffer_info b;
-  b.buf = (char*) malloc(1);
+  b.buf = (char*) malloc(10);
   b.buf_len = 0;
 
-  string_pack(&b, "multiply");
-  float_pack(&b, x);
-  float_pack(&b, y);
+  string_pack(&b, "concat");
+  string_pack(&b, s);
+  string_pack(&b, t);
 
   // send function signature and params
   RPCPROXYSOCKET->write(b.buf, b.buf_len);
+  free(b.buf); //
 
-  float res = float_handler();
+  string res = string_handler();
   return res;
 }
 
-
-float divide(float x, float y) {
+string concat3(string s, string t, string u) {
   // construct msg
   struct Buffer_info b;
-  b.buf = (char*) malloc(1);
+  b.buf = (char*) malloc(10);
   b.buf_len = 0;
 
-  string_pack(&b, "divide");
-  float_pack(&b, x);
-  float_pack(&b, y);
+  string_pack(&b, "concat3");
+  string_pack(&b, s);
+  string_pack(&b, t);
+  string_pack(&b, u);
 
   // send function signature and params
   RPCPROXYSOCKET->write(b.buf, b.buf_len);
+  free(b.buf); //
 
-  float res = float_handler();
+  string res = string_handler();
   return res;
 }
-

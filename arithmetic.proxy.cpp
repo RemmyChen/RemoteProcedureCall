@@ -1,7 +1,6 @@
 ///////////////////////////////////////////
 //
-//    arithmetic.proxy.cpp
-//    author: Jialu Wei, Remmy Chen      
+//    arithmetic.proxy.cpp 
 //   
 ///////////////////////////////////////////
 
@@ -18,118 +17,136 @@
 using namespace C150NETWORK;  // for all the comp150 utilities 
 using namespace std;
 
-#define BUFSIZE 1024
 
-int deserialize_int(string val) {
-    int result = atoi(val.c_str());
-    return result;
+#define INT_LEN 4
+#define FLOAT_LEN 4
+
+struct Buffer_info {
+  char *buf;
+  int buf_len;
+};
+
+
+///////////////////////////////
+//    serialize 
+///////////////////////////////
+
+void int_pack(struct Buffer_info *b,  int i1) {
+  int converted = htonl(i1);
+  int new_buf_len; 
+  char *new_buf;
+
+  new_buf_len= b->buf_len + INT_LEN;
+  new_buf = (char*)malloc(new_buf_len);
+  memcpy(new_buf, b->buf, b->buf_len);
+  memcpy(new_buf+b->buf_len, (char *)&converted, INT_LEN);
+  free(b->buf);
+
+  b->buf = new_buf;
+  b->buf_len = new_buf_len;
 }
 
-string serialize_int(int val) {
-    return to_string(val);    
+void string_pack(struct Buffer_info *b, string s) {
+  int_pack(b, s.length());
+
+  int new_buf_len; 
+  char *new_buf;
+
+  new_buf_len= b->buf_len + s.length();
+  new_buf = (char*)malloc(new_buf_len);
+  memcpy(new_buf, b->buf, b->buf_len);
+  memcpy(new_buf+b->buf_len, s.c_str(), s.length());
+  free(b->buf);
+
+  b->buf = new_buf;
+  b->buf_len = new_buf_len;
 }
 
-string receive_full_res() {
-  unsigned int i;
-  char buffer[BUFSIZE];
-  char *bufp;    // next char to read
-  bool readMsg;  // whether we've read to the end of a message (message is a functional call)
-  ssize_t readlen; // amount of data read from socket
 
-  // Read a message from the stream, -1 in size below is to leave room for null
-  readMsg = false;
-  bufp = buffer;
-  for (i=0; i< BUFSIZE; i++) {
-    readlen = RPCPROXYSOCKET-> read(bufp, 1);  // read a byte
-    // check for eof or error
-    if (readlen == 0) {
-      break;
-    }
-    // check for null and bump buffer pointer
-    if (*bufp++ == '#') {     // break into messages (function calls)
-        readMsg = true;
-        break;
-    }
-  }
-  
-  // With TCP streams, we should never get a 0 length read
-  // except with timeouts or EOF
-  if (readlen == 0) {
-    c150debug->printf(C150RPCDEBUG,"arithmetic.stub: read zero length message, checking EOF");
-    if (RPCPROXYSOCKET-> eof()) {
-      c150debug->printf(C150RPCDEBUG,"arithmetic.stub: EOF signaled on input");
-    } else {
-      throw C150Exception("arithmetic.stub:  unexpected zero length read without eof");
-    }
-  } else if(!readMsg) {
-    // If we didn't get a null, input message was poorly formatted
-    throw C150Exception("simplefunction.stub: method name not null terminated or too long");
-  }
+///////////////////////////////
+//    deserialize 
+///////////////////////////////
 
-  // Note that eof may be set here for our caller to check (???)
-
-  string msg(buffer);
-  return msg;
+int int_handler() {
+  char buf[INT_LEN];
+  int res;
+  RPCPROXYSOCKET->read(buf, INT_LEN);
+  memcpy(&res, buf, INT_LEN);
+  return ntohl(res);
 }
+
+
+///////////////////////////////
+//    call functions (remote)
+///////////////////////////////
 
 int add(int x, int y) {
-  // msg buffer
-  string buf = "";
-  string fn = "add";
-  string actual_args = to_string(x) + "," + to_string(y);
+  // construct msg
+  struct Buffer_info b;
+  b.buf = (char*) malloc(10);
+  b.buf_len = 0;
 
-  buf = fn + "#" + actual_args + "#";
+  string_pack(&b, "add");
+  int_pack(&b, x);
+  int_pack(&b, y);
 
   // send function signature and params
-  RPCPROXYSOCKET->write(buf.c_str(), strlen(buf.c_str()));
+  RPCPROXYSOCKET->write(b.buf, b.buf_len);
 
-  string msg = receive_full_res();
-  return deserialize_int(msg);
+  int res = int_handler();
+  return res;
 }
 
 int subtract(int x, int y) {
-  // msg buffer
-  string buf = "";
-  string fn = "subtract";
-  string actual_args = to_string(x) + "," + to_string(y);
+  // construct msg
+  struct Buffer_info b;
+  b.buf = (char*) malloc(10);
+  b.buf_len = 0;
 
-  buf = fn + "#" + actual_args + "#";
+  string_pack(&b, "subtract");
+  int_pack(&b, x);
+  int_pack(&b, y);
 
   // send function signature and params
-  RPCPROXYSOCKET->write(buf.c_str(), strlen(buf.c_str())); // write function name including null
+  RPCPROXYSOCKET->write(b.buf, b.buf_len);
 
-  string msg = receive_full_res();
-  return deserialize_int(msg);
+  int res = int_handler();
+  return res;
 }
 
 
 int multiply(int x, int y) {
-  // msg buffer
-  string buf = "";
-  string fn = "multiply";
-  string actual_args = to_string(x) + "," + to_string(y);
+  // construct msg
+  struct Buffer_info b;
+  b.buf = (char*) malloc(10);
+  b.buf_len = 0;
 
-  buf = fn + "#" + actual_args + "#";
+  string_pack(&b, "multiply");
+  int_pack(&b, x);
+  int_pack(&b, y);
 
   // send function signature and params
-  RPCPROXYSOCKET->write(buf.c_str(), strlen(buf.c_str())); // write function name including null
+  RPCPROXYSOCKET->write(b.buf, b.buf_len);
 
-  string msg = receive_full_res();
-  return deserialize_int(msg);
+  int res = int_handler();
+  return res;
 }
 
-int divide(int x, int y) {
-  // msg buffer
-  string buf = "";
-  string fn = "divide";
-  string actual_args = to_string(x) + "," + to_string(y);
 
-  buf = fn + "#" + actual_args + "#";
+int divide(int x, int y) {
+  // construct msg
+  struct Buffer_info b;
+  b.buf = (char*) malloc(1);
+  b.buf_len = 0;
+
+  string_pack(&b, "divide");
+  int_pack(&b, x);
+  int_pack(&b, y);
 
   // send function signature and params
-  RPCPROXYSOCKET->write(buf.c_str(), strlen(buf.c_str())); // write function name including null
+  RPCPROXYSOCKET->write(b.buf, b.buf_len);
 
-  string msg = receive_full_res();
-  return deserialize_int(msg);
+  int res = int_handler();
+  return res;
 }
 

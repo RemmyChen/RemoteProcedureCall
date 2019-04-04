@@ -1,17 +1,18 @@
 ///////////////////////////////////////////
 //
-//    floatarithmeticclient.cpp  
+//    stringsclient.cpp    
 //   
 ///////////////////////////////////////////
 
+#include <string>
+using namespace std;
+#include "strings.idl"   // include the idl file
 
-#include "floatarithmetic.idl"   // include the idl file
 #include "rpcproxyhelper.h"
 #include "c150debug.h"
 #include "c150grading.h"
 #include <fstream>
 
-using namespace std;          // for C++ std library
 using namespace C150NETWORK;  // for all the comp150 utilities 
 
 
@@ -20,9 +21,6 @@ const int serverArg = 1;
 
 // main
 int main(int argc, char *argv[]) {
-    // set up debug
-    //setUpDebugLogging("arithmeticclientdebug.txt",argc, argv);
-
     // check command line args
     if (argc != 2) {
       fprintf(stderr,"Correct syntxt is: %s <servername> \n", argv[0]);
@@ -30,25 +28,25 @@ int main(int argc, char *argv[]) {
     }
      
     // grademe
-    // GRADEME(argc, argv);
+    GRADEME(argc, argv);
     
     // call functions
     try {
-      float result; 
+      string result; 
       // set up the socket so proxies can find it
       rpcproxyinitialize(argv[serverArg]);
 
-       result = add(10.12,2.123);
-       cout << "float add. Result=" << result << endl;
+       printf("Calling upcase(test)\n");
+       result = upcase("test");
+       printf("Returned from upase(test). Result=%s\n",result.c_str());
 
-       result = subtract(10.12,2.123);
-       cout << "float subtract. Result=" << result << endl;
+       printf("Calling concat(hello,world)\n");
+       result = concat("hello","world");
+       printf("Returned from concat(hello,world). Result=%s\n",result.c_str());
 
-       result = multiply(10.12,2.123);
-       cout << "float multiply. Result=" << result << endl;
-
-       result = divide(10.12,2.123);
-       cout << "float divide. Result=" << result << endl;
+       printf("Calling concat3(hello, 123 ,world)\n");
+       result = concat3("hello"," 123 ","world");
+       printf("Returned from concat3(hello, 123 ,world. Result=%s\n",result.c_str());
 
      } catch (C150Exception e) {
         // write to debug log
@@ -58,3 +56,4 @@ int main(int argc, char *argv[]) {
      }
      return 0;
 }
+

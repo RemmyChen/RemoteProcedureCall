@@ -1,10 +1,14 @@
-///////////////////////////////////////////
+////////////////////////////////////////////
 //
-//    floatarithmetic.stub.cpp   
+//    strings.stub.cpp   
 //   
 ///////////////////////////////////////////
 
-#include "floatarithmetic.idl"  // include idl file
+#include <string>
+using namespace std;
+#include "strings.idl"   // include the idl file
+
+
 #include "rpcstubhelper.h"
 #include <cstdio>
 #include <cstring>
@@ -59,11 +63,6 @@ void string_pack(struct Buffer_info *b, string s) {
   b->buf_len = new_buf_len;
 }
 
-void float_pack(struct Buffer_info *b,  float f1) {
-  string s = to_string(f1);
-  string_pack(b, s);
-}
-
 
 ///////////////////////////////
 //    deserialize 
@@ -72,7 +71,8 @@ void float_pack(struct Buffer_info *b,  float f1) {
 int int_handler() {
   char buf[INT_LEN];
   int res;
-  RPCSTUBSOCKET->read(buf, INT_LEN);
+  int readlen = RPCSTUBSOCKET->read(buf, INT_LEN);
+  if (readlen == 0) return 0;
   memcpy(&res, buf, INT_LEN);
   return ntohl(res);
 }
@@ -80,65 +80,50 @@ int int_handler() {
 
 string string_handler() {
   int str_len = int_handler();
-
   char buf[str_len];
-  RPCSTUBSOCKET->read(buf, str_len);
+  int readlen = RPCSTUBSOCKET->read(buf, str_len);
+  if (readlen == 0) return "";
   string res(buf, str_len);
   return res;
 }
 
 
-float float_handler() {
-  string s = string_handler();
-  return atof(s.c_str());
-}
-
 ///////////////////////////////
 //    call functions (local)
 ///////////////////////////////
 
-void __add(float x, float y) {
-  float res = add(x, y);
+void __upcase(string s) {
+  string res = upcase(s);
 
   struct Buffer_info b;
   b.buf = (char*) malloc(1);
   b.buf_len = 0;
-  float_pack(&b, res);
+  string_pack(&b, res);
   RPCSTUBSOCKET->write(b.buf, b.buf_len);
+  free(b.buf); //
 }
 
 
-void __subtract(float x, float y) {
-  float res = subtract(x, y);
-  
+void __concat(string s, string t) {
+  string res = concat(s, t);
+
   struct Buffer_info b;
   b.buf = (char*) malloc(1);
   b.buf_len = 0;
-  float_pack(&b, res);
+  string_pack(&b, res);
   RPCSTUBSOCKET->write(b.buf, b.buf_len);
+  free(b.buf); //
 }
 
+void __concat3(string s, string t, string u) {
+  string res = concat3(s, t, u);
 
-void __multiply(float x, float y) {
-  float res = multiply(x, y);
-  
   struct Buffer_info b;
   b.buf = (char*) malloc(1);
   b.buf_len = 0;
-  float_pack(&b, res);
+  string_pack(&b, res);
   RPCSTUBSOCKET->write(b.buf, b.buf_len);
-}
-
-
-void __divide(float x, float y) {
-  // TODO: check y for 0
-  float res = divide(x, y);
-  
-  struct Buffer_info b;
-  b.buf = (char*) malloc(1);
-  b.buf_len = 0;
-  float_pack(&b, res);
-  RPCSTUBSOCKET->write(b.buf, b.buf_len);
+  free(b.buf); //
 }
 
 
@@ -158,25 +143,27 @@ void dispatchFunction() {
   printf("IN dispatchFunction\n");
   if (!RPCSTUBSOCKET -> eof()) {
     string func_name = string_handler();
-
-    if (func_name.compare("add")==0) {
-      float x = float_handler();
-      float y = float_handler();
-      __add(x, y);
-    } else if (func_name.compare("subtract")==0) {
-      float x = float_handler();
-      float y = float_handler();
-      __subtract(x, y);
-    } else if (func_name.compare("multiply")==0) {
-      float x = float_handler();
-      float y = float_handler();
-      __multiply(x, y);
-    } else if (func_name.compare("divide")==0) {
-      float x = float_handler();
-      float y = float_handler();
-      __divide(x, y);
+    if (func_name.compare("")==0) {
+        return;
+    }
+    if (func_name.compare("upcase")==0) {
+      string s = string_handler();
+      __upcase(s);
+    } else if (func_name.compare("concat")==0) {
+      string s = string_handler();
+      string t = string_handler();
+      __concat(s, t);
+    } else if (func_name.compare("concat3")==0) {
+      string s = string_handler();
+      string t = string_handler();
+      string u = string_handler();
+      __concat3(s, t, u);
     } else {
       printf("BAD function\n");
+      string_handler();
+      string_handler();
+      string_handler();
+      // need to write something back to client
     }
   }
 }
