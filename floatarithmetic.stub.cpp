@@ -72,7 +72,8 @@ void float_pack(struct Buffer_info *b,  float f1) {
 int int_handler() {
   char buf[INT_LEN];
   int res;
-  RPCSTUBSOCKET->read(buf, INT_LEN);
+  int readlen = RPCSTUBSOCKET->read(buf, INT_LEN);
+  if (readlen == 0) return 0;
   memcpy(&res, buf, INT_LEN);
   return ntohl(res);
 }
@@ -82,7 +83,8 @@ string string_handler() {
   int str_len = int_handler();
 
   char buf[str_len];
-  RPCSTUBSOCKET->read(buf, str_len);
+  int readlen = RPCSTUBSOCKET->read(buf, str_len);
+  if (readlen == 0) return "";
   string res(buf, str_len);
   return res;
 }
@@ -159,6 +161,9 @@ void dispatchFunction() {
   if (!RPCSTUBSOCKET -> eof()) {
     string func_name = string_handler();
 
+    if (func_name.compare("")==0) {
+        return;
+    }
     if (func_name.compare("add")==0) {
       float x = float_handler();
       float y = float_handler();
