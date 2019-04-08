@@ -36,8 +36,8 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  // grademe
-  GRADEME(argc, argv);
+  // // grademe
+  // GRADEME(argc, argv);
 
   // call functions
   try {
@@ -56,6 +56,7 @@ int main(int argc, char *argv[]) {
   	    // which we'll get when client goes away.
         dispatchFunction();
         if (RPCSTUBSOCKET -> eof()) {
+          printf("EOF\n");
           c150debug->printf(C150RPCDEBUG,"rpcserver.cpp: EOF signaled on input");
           break;
         }

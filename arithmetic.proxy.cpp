@@ -1,152 +1,124 @@
-///////////////////////////////////////////
-//
-//    arithmetic.proxy.cpp 
-//   
-///////////////////////////////////////////
+//arithmetic.proxy.cpp
+//authors: Jialu Wei, Remmy Chen
 
-#include "arithmetic.idl"  // include idl file
+#include <string>
+using namespace std;
+#include "arithmetic.idl"
 #include "rpcproxyhelper.h"
 #include <cstdio>
 #include <cstring>
 #include "c150debug.h"
-
-#include <iostream>   // std::cout
-#include <string>     // std::string, std::to_string
-
-
-using namespace C150NETWORK;  // for all the comp150 utilities 
-using namespace std;
-
+#include <iostream>
+#include <vector>
+using namespace C150NETWORK;
 
 #define INT_LEN 4
 #define FLOAT_LEN 4
 
 struct Buffer_info {
-  char *buf;
-  int buf_len;
+	char *buf;
+	int buf_len;
 };
 
+void int_serializer(struct Buffer_info *b, int i);
 
-///////////////////////////////
-//    serialize 
-///////////////////////////////
+int int_deserializer();
 
-void int_pack(struct Buffer_info *b,  int i1) {
-  int converted = htonl(i1);
-  int new_buf_len; 
-  char *new_buf;
+void string_serializer(struct Buffer_info *b, string s);
 
-  new_buf_len= b->buf_len + INT_LEN;
-  new_buf = (char*)malloc(new_buf_len);
-  memcpy(new_buf, b->buf, b->buf_len);
-  memcpy(new_buf+b->buf_len, (char *)&converted, INT_LEN);
-  free(b->buf);
+string string_deserializer();
 
-  b->buf = new_buf;
-  b->buf_len = new_buf_len;
+void int_serializer(struct Buffer_info *b, int i) {
+	int converted = htonl(i);
+	int new_buf_len;
+	char *new_buf;
+	new_buf_len = b->buf_len + INT_LEN;
+	new_buf = (char*) malloc(new_buf_len);
+	memcpy(new_buf, b->buf, b->buf_len);
+	memcpy(new_buf+b->buf_len, (char*)&converted, INT_LEN);
+	free(b->buf);
+	b->buf = new_buf;
+	b->buf_len = new_buf_len;
+}
+void string_serializer(struct Buffer_info *b, string s) {
+	int_serializer(b, s.length());
+	int new_buf_len;
+	char *new_buf;
+	new_buf_len = b->buf_len + s.length();
+	new_buf = (char*) malloc(new_buf_len);
+	memcpy(new_buf, b->buf, b->buf_len);
+	memcpy(new_buf+b->buf_len, s.c_str(), s.length());
+	free(b->buf);
+	b->buf = new_buf;
+	b->buf_len = new_buf_len;
 }
 
-void string_pack(struct Buffer_info *b, string s) {
-  int_pack(b, s.length());
-
-  int new_buf_len; 
-  char *new_buf;
-
-  new_buf_len= b->buf_len + s.length();
-  new_buf = (char*)malloc(new_buf_len);
-  memcpy(new_buf, b->buf, b->buf_len);
-  memcpy(new_buf+b->buf_len, s.c_str(), s.length());
-  free(b->buf);
-
-  b->buf = new_buf;
-  b->buf_len = new_buf_len;
+int int_deserializer() {
+	char buf[INT_LEN];
+	int res;
+	int readlen = RPCPROXYSOCKET->read(buf, INT_LEN);
+	if (readlen == 0) return 0;
+	memcpy(&res, buf, INT_LEN);
+	return ntohl(res);
 }
-
-
-///////////////////////////////
-//    deserialize 
-///////////////////////////////
-
-int int_handler() {
-  char buf[INT_LEN];
-  int res;
-  RPCPROXYSOCKET->read(buf, INT_LEN);
-  memcpy(&res, buf, INT_LEN);
-  return ntohl(res);
-}
-
-
-///////////////////////////////
-//    call functions (remote)
-///////////////////////////////
-
-int add(int x, int y) {
-  // construct msg
-  struct Buffer_info b;
-  b.buf = (char*) malloc(10);
-  b.buf_len = 0;
-
-  string_pack(&b, "add");
-  int_pack(&b, x);
-  int_pack(&b, y);
-
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  int res = int_handler();
-  return res;
+string string_deserializer() {
+	int str_len = int_deserializer();
+	char buf[str_len];
+	int readlen = RPCPROXYSOCKET->read(buf, str_len);
+	if (readlen == 0) return "";
+	string res(buf, str_len);
+	return res;
 }
 
 int subtract(int x, int y) {
-  // construct msg
-  struct Buffer_info b;
-  b.buf = (char*) malloc(10);
-  b.buf_len = 0;
-
-  string_pack(&b, "subtract");
-  int_pack(&b, x);
-  int_pack(&b, y);
-
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  int res = int_handler();
-  return res;
+	struct Buffer_info b;
+	b.buf = (char*) malloc(1);
+	b.buf_len = 0;
+	string_serializer(&b, "subtract");
+	int_serializer(&b, x);
+	int_serializer(&b, y);
+	RPCPROXYSOCKET->write(b.buf, b.buf_len);
+	free(b.buf);
+	int res = int_deserializer();
+	return res;
 }
-
-
-int multiply(int x, int y) {
-  // construct msg
-  struct Buffer_info b;
-  b.buf = (char*) malloc(10);
-  b.buf_len = 0;
-
-  string_pack(&b, "multiply");
-  int_pack(&b, x);
-  int_pack(&b, y);
-
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  int res = int_handler();
-  return res;
-}
-
 
 int divide(int x, int y) {
-  // construct msg
-  struct Buffer_info b;
-  b.buf = (char*) malloc(1);
-  b.buf_len = 0;
+	struct Buffer_info b;
+	b.buf = (char*) malloc(1);
+	b.buf_len = 0;
+	string_serializer(&b, "divide");
+	int_serializer(&b, x);
+	int_serializer(&b, y);
+	RPCPROXYSOCKET->write(b.buf, b.buf_len);
+	free(b.buf);
+	int res = int_deserializer();
+	return res;
+}
 
-  string_pack(&b, "divide");
-  int_pack(&b, x);
-  int_pack(&b, y);
+int add(int x, int y) {
+	struct Buffer_info b;
+	b.buf = (char*) malloc(1);
+	b.buf_len = 0;
+	string_serializer(&b, "add");
+	int_serializer(&b, x);
+	int_serializer(&b, y);
+	RPCPROXYSOCKET->write(b.buf, b.buf_len);
+	free(b.buf);
+	int res = int_deserializer();
+	return res;
+}
 
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  int res = int_handler();
-  return res;
+int multiply(int x, int y) {
+	struct Buffer_info b;
+	b.buf = (char*) malloc(1);
+	b.buf_len = 0;
+	string_serializer(&b, "multiply");
+	int_serializer(&b, x);
+	int_serializer(&b, y);
+	RPCPROXYSOCKET->write(b.buf, b.buf_len);
+	free(b.buf);
+	int res = int_deserializer();
+	return res;
 }
 
