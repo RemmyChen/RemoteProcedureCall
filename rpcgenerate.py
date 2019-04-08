@@ -4,6 +4,7 @@ import subprocess
 import json
 import sys
 import os
+import re
 
 TODO = "\t" + "//TODO\n"
 OPEN = "{\n"
@@ -132,19 +133,60 @@ def writeSerializersAndDeserializers(typeSet, f, stubOrProxy):
             deserializers += deserializer
             f.write('%s\n' % deserializerContract)
         elif typeOfType.startswith("__"):
-            print("TODO")
-        else:
-            serializer = (typeOfType + " " + typeOfType + "_serializer() " + OPEN + 
-                                "\t" + typeOfType + " s1;\n" + TODO + CLOSE)
+            print("TODO %s\n" % typeOfType)
+            serializer, serializerContract = genArraySerializer(typeOfType)
             serializers += serializer
-            print("TODO")
+            f.write('%s\n' % serializerContract)
+            deserializer, deserializerContract = genArrayDeserializer(typeOfType)
+            deserializers += deserializer
+            f.write('%s\n' % deserializerContract)
+        else:
+            print("TODO %s\n" % typeOfType)
+            serializer, serializerContract = genStructSerializer(typeOfType)
+            serializers += serializer
+            f.write('%s\n' % serializerContract)
+            deserializer, deserializerContract = genStructDeserializer(typeOfType)
+            deserializers += deserializer
+            f.write('%s\n' % deserializerContract)
     f.write('%s\n' % serializers)
     f.write('%s\n' % deserializers)
 
-def genBuiltInSerializer(name):
+def genStructSerializer(typeOfType):
+    serializer = ("void " + typeOfType + "_serializer(struct Buffer_info *b, " + typeOfType + " " + typeOfType[0] + "1) " + OPEN + 
+                    TODO + CLOSE)
+    serializerContract = "void " + typeOfType + "_serializer(struct Buffer_info *b, " + typeOfType + " " + typeOfType[0] + "1);\n"
+    return serializer, serializerContract
+
+def genStructDeserializer(typeOfType):
+    deserializer = (typeOfType + " " + typeOfType + "_serializer() " + OPEN + 
+                    "\t" + typeOfType + " s1;\n" + TODO + CLOSE)
+    deserializerContract = typeOfType + " " + typeOfType + "_serializer();\n"
+    return deserializer, deserializerContract
+
+def genArraySerializer(typeOfType):
+    arrSizesString = '[' + typeOfType.split('[', 1)[1]
+    typeOfType = typeOfType.replace('[', '_').replace(']', '_')
+    arrType = [s for s in typeOfType.split('_') if s.isalpha()][0]
+    arrSizes = [int(s) for s in typeOfType.split('_') if s.isdigit()]
+    serializer = ("void " + typeOfType + "serializer(struct Buffer_info *b, " + arrType + " arr" + arrSizesString + ") " + OPEN + 
+                    TODO + CLOSE)
+    serializerContract = "void " + typeOfType + "serializer(struct Buffer_info *b, " + arrType + " arr" + arrSizesString + ");\n"
+    return serializer, serializerContract
+
+def genArrayDeserializer(typeOfType):
+    arrSizesString = '[' + typeOfType.split('[', 1)[1]
+    typeOfType = typeOfType.replace('[', '_').replace(']', '_')
+    arrType = [s for s in typeOfType.split('_') if s.isalpha()][0]
+    arrSizes = [int(s) for s in typeOfType.split('_') if s.isdigit()]
+    deserializer = ("void " + typeOfType + "deserializer(" + arrType + " arr" + arrSizesString + ") " + OPEN + 
+                    TODO + CLOSE)
+    deserializerContract = "void " + typeOfType + "deserializer(" + arrType + " arr" + arrSizesString + ");\n"
+    return deserializer, deserializerContract
+
+def genBuiltInSerializer(typeOfType):
     serializer = ""
     serializerContract = ""
-    if name == "int":
+    if typeOfType == "int":
         serializer = ("void int_serializer(struct Buffer_info *b, int i) " + OPEN +
                         "\tint converted = htonl(i);\n"
                         "\tint new_buf_len;\n"
@@ -157,7 +199,7 @@ def genBuiltInSerializer(name):
                         "\tb->buf = new_buf;\n"
                         "\tb->buf_len = new_buf_len;\n" + CLOSE)
         serializerContract = "void int_serializer(struct Buffer_info *b, int i);\n"
-    elif name == "string":
+    elif typeOfType == "string":
         serializer = ("void string_serializer(struct Buffer_info *b, string s) " + OPEN + 
                         "\tint_serializer(b, s.length());\n"
                         "\tint new_buf_len;\n"
@@ -170,19 +212,19 @@ def genBuiltInSerializer(name):
                         "\tb->buf = new_buf;\n"
                         "\tb->buf_len = new_buf_len;\n" + CLOSE)
         serializerContract = "void string_serializer(struct Buffer_info *b, string s);\n"
-    elif name == "float":
+    elif typeOfType == "float":
         serializer = ("void float_serializer(struct Buffer_info *b, float f) " + OPEN +
                         "\tstring s = to_string(f);\n"
                         "\tstring_serializer(b, s);\n" + CLOSE)
         serializerContract = "void float_serializer(struct Buffer_info *b, float f);\n"
-    elif name == "void":
+    elif typeOfType == "void":
         serializer = "" # TODO : HOW TO HANDLE VOID
     return serializer, serializerContract
 
-def genBuiltInDeserializer(name, stubOrProxy):
+def genBuiltInDeserializer(typeOfType, stubOrProxy):
     deserializer = ""
     deserializerContract = ""
-    if name == "int":
+    if typeOfType == "int":
         deserializer = ("int int_deserializer() " + OPEN +
                         "\tchar buf[INT_LEN];\n"
                         "\tint res;\n"
@@ -191,7 +233,7 @@ def genBuiltInDeserializer(name, stubOrProxy):
                         "\tmemcpy(&res, buf, INT_LEN);\n"
                         "\treturn ntohl(res);\n" + CLOSE)
         deserializerContract = "int int_deserializer();\n"
-    elif name == "string":
+    elif typeOfType == "string":
         deserializer = ("string string_deserializer() " + OPEN + 
                         "\tint str_len = int_deserializer();\n"
                         "\tchar buf[str_len];\n"
@@ -200,28 +242,28 @@ def genBuiltInDeserializer(name, stubOrProxy):
                         "\tstring res(buf, str_len);\n"
                         "\treturn res;\n" + CLOSE)
         deserializerContract = "string string_deserializer();\n"
-    elif name == "float":
+    elif typeOfType == "float":
         deserializer = ("float float_deserializer() " + OPEN +
                         "\tstring s = string_deserializer();\n"
                         "\treturn atof(s.c_str());\n" + CLOSE)
         deserializerContract = "float float_deserializer();\n"
-    elif name == "void":
+    elif typeOfType == "void":
         deserializer = "" # TODO : HOW TO HANDLE VOID
     return deserializer, deserializerContract
 
-def writeFnRemoteCalls(name, args, retType, f):
+def writeFnRemoteCalls(typeOfType, args, retType, f):
     argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
     serializeargs = ''.join([a["type"] + "_serializer(&b, " + a["name"] + ");\n\t" for a in args])
     fnbody = ("\tstruct Buffer_info b;\n"
                 "\tb.buf = (char*) malloc(1);\n"
                 "\tb.buf_len = 0;\n"
-                "\tstring_serializer(&b, \"" + name + "\");\n"
+                "\tstring_serializer(&b, \"" + typeOfType + "\");\n"
                 "\t" + serializeargs +
                 "RPCPROXYSOCKET->write(b.buf, b.buf_len);\n"
                 "\tfree(b.buf);\n"
                 "\t" + retType + " res = " + retType + "_deserializer();\n"
                 "\treturn res;\n")
-    fnremotecall = retType + " " + name + "(" + argstring + ") " + OPEN + fnbody + CLOSE
+    fnremotecall = retType + " " + typeOfType + "(" + argstring + ") " + OPEN + fnbody + CLOSE
     f.write('%s\n' % fnremotecall)
 
 
@@ -260,16 +302,16 @@ def write_stub_fn(filename, decls):
         f.write('%s\n' % dispatcher)
     f.close()
 
-def writeFnLocalCalls(name, args, retType, f):
+def writeFnLocalCalls(typeOfType, args, retType, f):
     argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
     argnamestring = ', '.join([a["name"] for a in args])
-    fncall = "\t" + retType + " res = " + name + "(" + argnamestring + ");\n"
+    fncall = "\t" + retType + " res = " + typeOfType + "(" + argnamestring + ");\n"
     fnbody = ("\tstruct Buffer_info b;\n"
                 "\tb.buf = (char*) malloc(1);\n"
                 "\tb.buf_len = 0;\n"
                 "\t" + retType + "_serializer(&b, res);\n"
                 "\tRPCSTUBSOCKET->write(b.buf, b.buf_len);\n")
-    fnlocalcall = "void __" + name + "(" + argstring + ") " + OPEN + fncall + fnbody + CLOSE
+    fnlocalcall = "void __" + typeOfType + "(" + argstring + ") " + OPEN + fncall + fnbody + CLOSE
     f.write('%s\n' % fnlocalcall)
 
 if __name__ == "__main__":
