@@ -82,13 +82,6 @@ Appends functions to proxy file.
     - deserializers (handlers)
     - serializers (pack)
 """
-"""
-retType = sig["return_type"]
-serializers = writeSerializers()
-f.write('%s\n' % serializers)
-deserializers = TODO
-f.write('%s\n' % deserializers)
-"""
 def write_proxy_fn(filename, decls):
     with open(filename+".proxy.cpp", 'a+') as f:
         typeSet = getTypeSet(decls)
@@ -168,8 +161,25 @@ def genArraySerializer(typeOfType):
     typeOfType = typeOfType.replace('[', '_').replace(']', '_')
     arrType = [s for s in typeOfType.split('_') if s.isalpha()][0]
     arrSizes = [int(s) for s in typeOfType.split('_') if s.isdigit()]
+    idx = 0
+    tab = ""
+    serializerBody = ""
+    varsList = []
+    for size in arrSizes:
+        var = "i" + str(idx)
+        varsList.append(var)
+        serializerBody += (tab + "\tfor (int " + var +  " = 0; " + var + " < " + str(size) + "; " + var + "++) {\n")
+        idx += 1
+        tab += "\t"
+    arrVarsString = ""
+    for var in varsList:
+        arrVarsString += '[' + var + ']'
+    serializerBody += tab + "\t" + arrType + "_serializer(b, arr" + arrVarsString + ");\n"
+    for size in arrSizes:
+        serializerBody += (tab + "}\n")
+        tab = tab[:-2]
     serializer = ("void " + typeOfType + "serializer(struct Buffer_info *b, " + arrType + " arr" + arrSizesString + ") " + OPEN + 
-                    TODO + CLOSE)
+                    serializerBody + CLOSE)
     serializerContract = "void " + typeOfType + "serializer(struct Buffer_info *b, " + arrType + " arr" + arrSizesString + ");\n"
     return serializer, serializerContract
 
@@ -178,8 +188,25 @@ def genArrayDeserializer(typeOfType):
     typeOfType = typeOfType.replace('[', '_').replace(']', '_')
     arrType = [s for s in typeOfType.split('_') if s.isalpha()][0]
     arrSizes = [int(s) for s in typeOfType.split('_') if s.isdigit()]
+    idx = 0
+    tab = ""
+    deserializerBody = ""
+    varsList = []
+    for size in arrSizes:
+        var = "i" + str(idx)
+        varsList.append(var)
+        deserializerBody += (tab + "\tfor (int " + var +  " = 0; " + var + " < " + str(size) + "; " + var + "++) {\n")
+        idx += 1
+        tab += "\t"
+    arrVarsString = ""
+    for var in varsList:
+        arrVarsString += '[' + var + ']'
+    deserializerBody += tab + "\tarr" + arrVarsString + " = " + arrType + "_deserializer();\n"
+    for size in arrSizes:
+        deserializerBody += (tab + "}\n")
+        tab = tab[:-1]
     deserializer = ("void " + typeOfType + "deserializer(" + arrType + " arr" + arrSizesString + ") " + OPEN + 
-                    TODO + CLOSE)
+                    deserializerBody + CLOSE)
     deserializerContract = "void " + typeOfType + "deserializer(" + arrType + " arr" + arrSizesString + ");\n"
     return deserializer, deserializerContract
 
