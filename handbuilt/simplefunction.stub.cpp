@@ -1,22 +1,19 @@
-///////////////////////////////////////////
+// --------------------------------------------------------------
 //
-//    strings.proxy.cpp 
-//   
-///////////////////////////////////////////
-#include <string>
-using namespace std;
-#include "strings.idl"   // include the idl file
+//                        simplefunction.stub.cpp
+//
+// --------------------------------------------------------------
 
-#include "rpcproxyhelper.h"
+#include "simplefunction.idl"  // include idl file
+#include "rpcstubhelper.h"
 #include <cstdio>
 #include <cstring>
 #include "c150debug.h"
-
-#include <iostream>   // std::cout
-
+#include <vector>
+#include <string>
 
 using namespace C150NETWORK;  // for all the comp150 utilities 
-
+using namespace std;
 
 #define INT_LEN 4
 #define FLOAT_LEN 4
@@ -25,7 +22,6 @@ struct Buffer_info {
   char *buf;
   int buf_len;
 };
-
 
 ///////////////////////////////
 //    serialize 
@@ -62,7 +58,6 @@ void string_pack(struct Buffer_info *b, string s) {
   b->buf_len = new_buf_len;
 }
 
-
 ///////////////////////////////
 //    deserialize 
 ///////////////////////////////
@@ -70,7 +65,7 @@ void string_pack(struct Buffer_info *b, string s) {
 int int_handler() {
   char buf[INT_LEN];
   int res;
-  int n = RPCPROXYSOCKET->read(buf, INT_LEN);
+  int n = RPCSTUBSOCKET->read(buf, INT_LEN);
 
   if (n == 0) {
     // eof
@@ -92,7 +87,7 @@ string string_handler() {
 
   if (str_len > 0) {
     char buf[str_len];
-    int n = RPCPROXYSOCKET->read(buf, str_len);
+    int n = RPCSTUBSOCKET->read(buf, str_len);
 
     if (n == 0) {
       // eof
@@ -112,58 +107,80 @@ string string_handler() {
   }
 }
 
+
 ///////////////////////////////
-//    call functions (remote)
+//    call functions (local)
 ///////////////////////////////
-string upcase(string s) {
-  // construct msg
+
+
+void __func1() {
+  func1();
+
   struct Buffer_info b;
   b.buf = (char*) malloc(1);
   b.buf_len = 0;
 
-  string_pack(&b, "upcase");
-  string_pack(&b, s);
-
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  string res = string_handler();
-  return res;
+  string_pack(&b, "DONE");
+  RPCSTUBSOCKET->write(b.buf, b.buf_len);
 }
 
+void __func2() {
+  func2();
 
-string concat(string s, string t) {
-    // construct msg
   struct Buffer_info b;
   b.buf = (char*) malloc(1);
   b.buf_len = 0;
 
-  string_pack(&b, "concat");
-  string_pack(&b, s);
-  string_pack(&b, t);
-
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  string res = string_handler();
-  return res;
+  string_pack(&b, "DONE");
+  RPCSTUBSOCKET->write(b.buf, b.buf_len);
 }
 
+void __func3() {
+  func3();
 
-string concat3(string s, string t, string u) {
-  // construct msg
   struct Buffer_info b;
   b.buf = (char*) malloc(1);
   b.buf_len = 0;
 
-  string_pack(&b, "concat3");
-  string_pack(&b, s);
-  string_pack(&b, t);
-  string_pack(&b, u);
-
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  string res = string_handler();
-  return res;
+  string_pack(&b, "DONE");
+  RPCSTUBSOCKET->write(b.buf, b.buf_len);
 }
+
+
+// Pseudo-stub for missing functions.
+void __badFunction(const char *functionName) {
+  char doneBuffer[5] = "BAD";
+  RPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);
+}
+
+
+///////////////////////////////
+//    dispatch function
+///////////////////////////////
+
+// called when we're ready to read a new invocation request from the stream
+void dispatchFunction() {
+  printf("IN dispatchFunction\n");
+  if (!RPCSTUBSOCKET -> eof()) {
+    string func_name = string_handler();
+    
+    // check if eof was reached
+    // NOTE: The EOF flag is only set once a read tries to read past the end of the file.
+    if (func_name.compare("")==0) {
+      return;
+    }
+
+    if (func_name.compare("func1")==0) {
+      __func1();
+    } else if (func_name.compare("func2")==0) {
+      __func2();
+    } else if (func_name.compare("func3")==0) {
+      __func3();
+    } else {
+      printf("BAD function\n");
+    }
+  }
+}
+
+
+

@@ -20,6 +20,10 @@ struct Buffer_info {
 	int buf_len;
 };
 
+void string_serializer(struct Buffer_info *b, string s);
+
+string string_deserializer();
+
 void float_serializer(struct Buffer_info *b, float f);
 
 float float_deserializer();
@@ -28,10 +32,18 @@ void int_serializer(struct Buffer_info *b, int i);
 
 int int_deserializer();
 
-void string_serializer(struct Buffer_info *b, string s);
-
-string string_deserializer();
-
+void string_serializer(struct Buffer_info *b, string s) {
+	int_serializer(b, s.length());
+	int new_buf_len;
+	char *new_buf;
+	new_buf_len = b->buf_len + s.length();
+	new_buf = (char*) malloc(new_buf_len);
+	memcpy(new_buf, b->buf, b->buf_len);
+	memcpy(new_buf+b->buf_len, s.c_str(), s.length());
+	free(b->buf);
+	b->buf = new_buf;
+	b->buf_len = new_buf_len;
+}
 void float_serializer(struct Buffer_info *b, float f) {
 	string s = to_string(f);
 	string_serializer(b, s);
@@ -48,51 +60,50 @@ void int_serializer(struct Buffer_info *b, int i) {
 	b->buf = new_buf;
 	b->buf_len = new_buf_len;
 }
-void string_serializer(struct Buffer_info *b, string s) {
-	int_serializer(b, s.length());
-	int new_buf_len;
-	char *new_buf;
-	new_buf_len = b->buf_len + s.length();
-	new_buf = (char*) malloc(new_buf_len);
-	memcpy(new_buf, b->buf, b->buf_len);
-	memcpy(new_buf+b->buf_len, s.c_str(), s.length());
-	free(b->buf);
-	b->buf = new_buf;
-	b->buf_len = new_buf_len;
-}
 
+string string_deserializer() {
+	int str_len = int_deserializer();
+	if (str_len > 0) {
+		char buf[str_len];
+		int readlen = RPCSTUBSOCKET->read(buf, str_len);
+		if (readlen == 0) {
+			return "";
+		} else if (readlen < 0) {
+			perror("read error");
+			exit(1);
+		} else {
+			string res(buf, str_len);
+			return res;
+		}
+	} else {
+		return "";
+	}
+}
 float float_deserializer() {
 	string s = string_deserializer();
+	if (s.compare("")==0) {
+		return -1;
+	} else {
 	return atof(s.c_str());
+	}
 }
 int int_deserializer() {
 	char buf[INT_LEN];
 	int res;
 	int readlen = RPCSTUBSOCKET->read(buf, INT_LEN);
-	if (readlen == 0) return 0;
-	memcpy(&res, buf, INT_LEN);
-	return ntohl(res);
-}
-string string_deserializer() {
-	int str_len = int_deserializer();
-	char buf[str_len];
-	int readlen = RPCSTUBSOCKET->read(buf, str_len);
-	if (readlen == 0) return "";
-	string res(buf, str_len);
-	return res;
+	if (readlen == 0) {
+		return -1;
+	} else if (readlen < 0) {
+		perror("readerror");
+		exit(1);
+	} else {
+		memcpy(&res, buf, INT_LEN);
+		return ntohl(res);
+	}
 }
 
-void __add(float x, float y) {
-	float res = add(x, y);
-	struct Buffer_info b;
-	b.buf = (char*) malloc(1);
-	b.buf_len = 0;
-	float_serializer(&b, res);
-	RPCSTUBSOCKET->write(b.buf, b.buf_len);
-}
-
-void __subtract(float x, float y) {
-	float res = subtract(x, y);
+void __divide(float x, float y) {
+	float res = divide(x, y);
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
@@ -109,8 +120,17 @@ void __multiply(float x, float y) {
 	RPCSTUBSOCKET->write(b.buf, b.buf_len);
 }
 
-void __divide(float x, float y) {
-	float res = divide(x, y);
+void __subtract(float x, float y) {
+	float res = subtract(x, y);
+	struct Buffer_info b;
+	b.buf = (char*) malloc(1);
+	b.buf_len = 0;
+	float_serializer(&b, res);
+	RPCSTUBSOCKET->write(b.buf, b.buf_len);
+}
+
+void __add(float x, float y) {
+	float res = add(x, y);
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
@@ -127,25 +147,25 @@ void dispatchFunction() {
 	if (!RPCSTUBSOCKET->eof()) {
 		string func_name = string_deserializer();
 		if (func_name.compare("")==0) return;
-		else if (func_name.compare("add")==0) {
+		else if (func_name.compare("divide")==0) {
 			float x = float_deserializer();
 			float y = float_deserializer();
-			__add(x, y);
-		}
-		else if (func_name.compare("subtract")==0) {
-			float x = float_deserializer();
-			float y = float_deserializer();
-			__subtract(x, y);
+			__divide(x, y);
 		}
 		else if (func_name.compare("multiply")==0) {
 			float x = float_deserializer();
 			float y = float_deserializer();
 			__multiply(x, y);
 		}
-		else if (func_name.compare("divide")==0) {
+		else if (func_name.compare("subtract")==0) {
 			float x = float_deserializer();
 			float y = float_deserializer();
-			__divide(x, y);
+			__subtract(x, y);
+		}
+		else if (func_name.compare("add")==0) {
+			float x = float_deserializer();
+			float y = float_deserializer();
+			__add(x, y);
 		}
 		else {
 			printf("BAD FUNCTION");

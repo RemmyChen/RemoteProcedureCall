@@ -43,21 +43,6 @@ void int_pack(struct Buffer_info *b,  int i1) {
   b->buf_len = new_buf_len;
 }
 
-void float_pack(struct Buffer_info *b,  float f1) {
-  float converted = htonl(f1);
-  int new_buf_len; 
-  char *new_buf;
-
-  new_buf_len= b->buf_len + FLOAT_LEN;
-  new_buf = (char*)malloc(new_buf_len);
-  memcpy(new_buf, b->buf, b->buf_len);
-  memcpy(new_buf+b->buf_len, (char *)&converted, FLOAT_LEN);
-  free(b->buf);
-
-  b->buf = new_buf;
-  b->buf_len = new_buf_len;
-}
-
 void string_pack(struct Buffer_info *b, string s) {
   int_pack(b, s.length());
 
@@ -72,6 +57,11 @@ void string_pack(struct Buffer_info *b, string s) {
 
   b->buf = new_buf;
   b->buf_len = new_buf_len;
+}
+
+void float_pack(struct Buffer_info *b,  float f1) {
+  string s = to_string(f1);
+  string_pack(b, s);
 }
 
 void string_5_3_pack(struct Buffer_info *b,  string arr[5][3]) {
@@ -109,30 +99,60 @@ void Info_pack(struct Buffer_info *b, Info i1) {
 ///////////////////////////////
 //    deserialize 
 ///////////////////////////////
-
 int int_handler() {
   char buf[INT_LEN];
   int res;
-  RPCPROXYSOCKET->read(buf, INT_LEN);
-  memcpy(&res, buf, INT_LEN);
-  return ntohl(res);
+  int n = RPCPROXYSOCKET->read(buf, INT_LEN);
+
+  if (n == 0) {
+    // eof
+    return -1;
+  } else if (n < 0) {
+    // error
+    perror("read error");
+    exit(1);
+  } else {
+    // n > 0
+    memcpy(&res, buf, INT_LEN);
+    return ntohl(res);
+  }
 }
 
-float float_handler() {
-  char buf[FLOAT_LEN];
-  float res;
-  RPCPROXYSOCKET->read(buf, FLOAT_LEN);
-  memcpy(&res, buf, FLOAT_LEN);
-  return ntohl(res);
-}
 
 string string_handler() {
   int str_len = int_handler();
 
-  char buf[str_len];
-  RPCPROXYSOCKET->read(buf, str_len);
-  string res(buf, str_len);
-  return res;
+  if (str_len > 0) {
+    char buf[str_len];
+    int n = RPCPROXYSOCKET->read(buf, str_len);
+
+    if (n == 0) {
+      // eof
+      return "";
+    } else if (n < 0) {
+      // error
+      perror("read error");
+      exit(1);
+    } else {
+      // n > 0
+      string res(buf, str_len);
+      return res;
+    }
+  } else {
+    // eof on the previous int read
+    return "";
+  }
+}
+
+
+float float_handler() {
+  string s = string_handler();
+  if (s.compare("") == 0) {
+    // eof on the previous string read
+    return -1;
+  } else {
+    return atof(s.c_str());
+  }
 }
 
 void string_5_3_handler(string arr[5][3]) {
@@ -188,12 +208,11 @@ Info echo(Info x, Info y) {
   
   // send the function call
   RPCPROXYSOCKET->write(b.buf, b.buf_len);
-  free(b.buf); //
+
   // read and return result
   Info res = Info_handler();
   return res;
 }
-
 
 Person echo_person (Person x, Person y) {
   // construct msg
@@ -208,7 +227,6 @@ Person echo_person (Person x, Person y) {
   
   // send the function call
   RPCPROXYSOCKET->write(b.buf, b.buf_len);
-  free(b.buf); //
 
   // read and return result
   Person res = Person_handler();

@@ -72,27 +72,57 @@ void float_pack(struct Buffer_info *b,  float f1) {
 int int_handler() {
   char buf[INT_LEN];
   int res;
-  int readlen = RPCSTUBSOCKET->read(buf, INT_LEN);
-  if (readlen == 0) return 0;
-  memcpy(&res, buf, INT_LEN);
-  return ntohl(res);
+  int n = RPCSTUBSOCKET->read(buf, INT_LEN);
+
+  if (n == 0) {
+    // eof
+    return -1;
+  } else if (n < 0) {
+    // error
+    perror("read error");
+    exit(1);
+  } else {
+    // n > 0
+    memcpy(&res, buf, INT_LEN);
+    return ntohl(res);
+  }
 }
 
 
 string string_handler() {
   int str_len = int_handler();
 
-  char buf[str_len];
-  int readlen = RPCSTUBSOCKET->read(buf, str_len);
-  if (readlen == 0) return "";
-  string res(buf, str_len);
-  return res;
+  if (str_len > 0) {
+    char buf[str_len];
+    int n = RPCSTUBSOCKET->read(buf, str_len);
+
+    if (n == 0) {
+      // eof
+      return "";
+    } else if (n < 0) {
+      // error
+      perror("read error");
+      exit(1);
+    } else {
+      // n > 0
+      string res(buf, str_len);
+      return res;
+    }
+  } else {
+    // eof on the previous int read
+    return "";
+  }
 }
 
 
 float float_handler() {
   string s = string_handler();
-  return atof(s.c_str());
+  if (s.compare("") == 0) {
+    // eof on the previous string read
+    return -1;
+  } else {
+    return atof(s.c_str());
+  }
 }
 
 ///////////////////////////////
@@ -160,10 +190,12 @@ void dispatchFunction() {
   printf("IN dispatchFunction\n");
   if (!RPCSTUBSOCKET -> eof()) {
     string func_name = string_handler();
-
+    // check if eof was reached
+    // NOTE: The EOF flag is only set once a read tries to read past the end of the file.
     if (func_name.compare("")==0) {
-        return;
+      return;
     }
+
     if (func_name.compare("add")==0) {
       float x = float_handler();
       float y = float_handler();

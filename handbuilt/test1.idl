@@ -1,0 +1,14 @@
+struct Person {
+  string first_middle_last_names[3]; 
+  float magic_num; 
+  int age;
+};
+
+struct Info {
+  string names[5][3];
+  Person people[5];
+};
+
+Info echo(Info x, Info y);
+
+Person echo_person (Person x, Person y);

@@ -20,6 +20,10 @@ struct Buffer_info {
 	int buf_len;
 };
 
+void string_serializer(struct Buffer_info *b, string s);
+
+string string_deserializer();
+
 void float_serializer(struct Buffer_info *b, float f);
 
 float float_deserializer();
@@ -28,10 +32,18 @@ void int_serializer(struct Buffer_info *b, int i);
 
 int int_deserializer();
 
-void string_serializer(struct Buffer_info *b, string s);
-
-string string_deserializer();
-
+void string_serializer(struct Buffer_info *b, string s) {
+	int_serializer(b, s.length());
+	int new_buf_len;
+	char *new_buf;
+	new_buf_len = b->buf_len + s.length();
+	new_buf = (char*) malloc(new_buf_len);
+	memcpy(new_buf, b->buf, b->buf_len);
+	memcpy(new_buf+b->buf_len, s.c_str(), s.length());
+	free(b->buf);
+	b->buf = new_buf;
+	b->buf_len = new_buf_len;
+}
 void float_serializer(struct Buffer_info *b, float f) {
 	string s = to_string(f);
 	string_serializer(b, s);
@@ -48,58 +60,53 @@ void int_serializer(struct Buffer_info *b, int i) {
 	b->buf = new_buf;
 	b->buf_len = new_buf_len;
 }
-void string_serializer(struct Buffer_info *b, string s) {
-	int_serializer(b, s.length());
-	int new_buf_len;
-	char *new_buf;
-	new_buf_len = b->buf_len + s.length();
-	new_buf = (char*) malloc(new_buf_len);
-	memcpy(new_buf, b->buf, b->buf_len);
-	memcpy(new_buf+b->buf_len, s.c_str(), s.length());
-	free(b->buf);
-	b->buf = new_buf;
-	b->buf_len = new_buf_len;
-}
 
+string string_deserializer() {
+	int str_len = int_deserializer();
+	if (str_len > 0) {
+		char buf[str_len];
+		int readlen = RPCPROXYSOCKET->read(buf, str_len);
+		if (readlen == 0) {
+			return "";
+		} else if (readlen < 0) {
+			perror("read error");
+			exit(1);
+		} else {
+			string res(buf, str_len);
+			return res;
+		}
+	} else {
+		return "";
+	}
+}
 float float_deserializer() {
 	string s = string_deserializer();
+	if (s.compare("")==0) {
+		return -1;
+	} else {
 	return atof(s.c_str());
+	}
 }
 int int_deserializer() {
 	char buf[INT_LEN];
 	int res;
 	int readlen = RPCPROXYSOCKET->read(buf, INT_LEN);
-	if (readlen == 0) return 0;
-	memcpy(&res, buf, INT_LEN);
-	return ntohl(res);
-}
-string string_deserializer() {
-	int str_len = int_deserializer();
-	char buf[str_len];
-	int readlen = RPCPROXYSOCKET->read(buf, str_len);
-	if (readlen == 0) return "";
-	string res(buf, str_len);
-	return res;
+	if (readlen == 0) {
+		return -1;
+	} else if (readlen < 0) {
+		perror("readerror");
+		exit(1);
+	} else {
+		memcpy(&res, buf, INT_LEN);
+		return ntohl(res);
+	}
 }
 
-float add(float x, float y) {
+float divide(float x, float y) {
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
-	string_serializer(&b, "add");
-	float_serializer(&b, x);
-	float_serializer(&b, y);
-	RPCPROXYSOCKET->write(b.buf, b.buf_len);
-	free(b.buf);
-	float res = float_deserializer();
-	return res;
-}
-
-float subtract(float x, float y) {
-	struct Buffer_info b;
-	b.buf = (char*) malloc(1);
-	b.buf_len = 0;
-	string_serializer(&b, "subtract");
+	string_serializer(&b, "divide");
 	float_serializer(&b, x);
 	float_serializer(&b, y);
 	RPCPROXYSOCKET->write(b.buf, b.buf_len);
@@ -121,11 +128,24 @@ float multiply(float x, float y) {
 	return res;
 }
 
-float divide(float x, float y) {
+float subtract(float x, float y) {
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
-	string_serializer(&b, "divide");
+	string_serializer(&b, "subtract");
+	float_serializer(&b, x);
+	float_serializer(&b, y);
+	RPCPROXYSOCKET->write(b.buf, b.buf_len);
+	free(b.buf);
+	float res = float_deserializer();
+	return res;
+}
+
+float add(float x, float y) {
+	struct Buffer_info b;
+	b.buf = (char*) malloc(1);
+	b.buf_len = 0;
+	string_serializer(&b, "add");
 	float_serializer(&b, x);
 	float_serializer(&b, y);
 	RPCPROXYSOCKET->write(b.buf, b.buf_len);

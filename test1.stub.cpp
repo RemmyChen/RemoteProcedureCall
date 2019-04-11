@@ -20,68 +20,41 @@ struct Buffer_info {
 	int buf_len;
 };
 
-void __string_5__3_serializer(struct Buffer_info *b, string arr[5][3]);
-
-void __string_5__3_deserializer(string arr[5][3]);
-
-void __Person_5_serializer(struct Buffer_info *b, Person arr[5]);
-
-void __Person_5_deserializer(Person arr[5]);
-
-void Person_serializer(struct Buffer_info *b, Person P1);
-
-Person Person_serializer();
-
-void int_serializer(struct Buffer_info *b, int i);
-
-int int_deserializer();
-
 void Info_serializer(struct Buffer_info *b, Info I1);
 
-Info Info_serializer();
-
-void __string_3_serializer(struct Buffer_info *b, string arr[3]);
-
-void __string_3_deserializer(string arr[3]);
-
-void float_serializer(struct Buffer_info *b, float f);
-
-float float_deserializer();
+Info Info_deserializer();
 
 void string_serializer(struct Buffer_info *b, string s);
 
 string string_deserializer();
 
-void __string_5__3_serializer(struct Buffer_info *b, string arr[5][3]) {
-	//TODO
-}
-void __Person_5_serializer(struct Buffer_info *b, Person arr[5]) {
-	//TODO
-}
-void Person_serializer(struct Buffer_info *b, Person P1) {
-	//TODO
-}
-void int_serializer(struct Buffer_info *b, int i) {
-	int converted = htonl(i);
-	int new_buf_len;
-	char *new_buf;
-	new_buf_len = b->buf_len + INT_LEN;
-	new_buf = (char*) malloc(new_buf_len);
-	memcpy(new_buf, b->buf, b->buf_len);
-	memcpy(new_buf+b->buf_len, (char*)&converted, INT_LEN);
-	free(b->buf);
-	b->buf = new_buf;
-	b->buf_len = new_buf_len;
-}
+void int_serializer(struct Buffer_info *b, int i);
+
+int int_deserializer();
+
+void __string_5_3__serializer(struct Buffer_info *b, string arr[5][3]);
+
+void __string_5_3__deserializer(string arr[5][3]);
+
+void __Person_5__serializer(struct Buffer_info *b, Person arr[5]);
+
+void __Person_5__deserializer(Person arr[5]);
+
+void Person_serializer(struct Buffer_info *b, Person P1);
+
+Person Person_deserializer();
+
+void float_serializer(struct Buffer_info *b, float f);
+
+float float_deserializer();
+
+void __string_3__serializer(struct Buffer_info *b, string arr[3]);
+
+void __string_3__deserializer(string arr[3]);
+
 void Info_serializer(struct Buffer_info *b, Info I1) {
-	//TODO
-}
-void __string_3_serializer(struct Buffer_info *b, string arr[3]) {
-	//TODO
-}
-void float_serializer(struct Buffer_info *b, float f) {
-	string s = to_string(f);
-	string_serializer(b, s);
+	__string_5_3__serializer(b, I1.names);
+	__Person_5__serializer(b, I1.people);
 }
 void string_serializer(struct Buffer_info *b, string s) {
 	int_serializer(b, s.length());
@@ -95,43 +68,114 @@ void string_serializer(struct Buffer_info *b, string s) {
 	b->buf = new_buf;
 	b->buf_len = new_buf_len;
 }
+void int_serializer(struct Buffer_info *b, int i) {
+	int converted = htonl(i);
+	int new_buf_len;
+	char *new_buf;
+	new_buf_len = b->buf_len + INT_LEN;
+	new_buf = (char*) malloc(new_buf_len);
+	memcpy(new_buf, b->buf, b->buf_len);
+	memcpy(new_buf+b->buf_len, (char*)&converted, INT_LEN);
+	free(b->buf);
+	b->buf = new_buf;
+	b->buf_len = new_buf_len;
+}
+void __string_5_3__serializer(struct Buffer_info *b, string arr[5][3]) {
+	for (int i0 = 0; i0 < 5; i0++) {
+		for (int i1 = 0; i1 < 3; i1++) {
+			string_serializer(b, arr[i0][i1]);
+		}
+}
+}
+void __Person_5__serializer(struct Buffer_info *b, Person arr[5]) {
+	for (int i0 = 0; i0 < 5; i0++) {
+		Person_serializer(b, arr[i0]);
+	}
+}
+void Person_serializer(struct Buffer_info *b, Person P1) {
+	__string_3__serializer(b, P1.first_middle_last_names);
+	float_serializer(b, P1.magic_num);
+	int_serializer(b, P1.age);
+}
+void float_serializer(struct Buffer_info *b, float f) {
+	string s = to_string(f);
+	string_serializer(b, s);
+}
+void __string_3__serializer(struct Buffer_info *b, string arr[3]) {
+	for (int i0 = 0; i0 < 3; i0++) {
+		string_serializer(b, arr[i0]);
+	}
+}
 
-void __string_5__3_deserializer(string arr[5][3]) {
-	//TODO
+Info Info_deserializer() {
+	Info I1;
+	__string_5_3__deserializer(I1.names);
+	__Person_5__deserializer(I1.people);
+	return I1;
 }
-void __Person_5_deserializer(Person arr[5]) {
-	//TODO
-}
-Person Person_serializer() {
-	Person s1;
-	//TODO
+string string_deserializer() {
+	int str_len = int_deserializer();
+	if (str_len > 0) {
+		char buf[str_len];
+		int readlen = RPCSTUBSOCKET->read(buf, str_len);
+		if (readlen == 0) {
+			return "";
+		} else if (readlen < 0) {
+			perror("read error");
+			exit(1);
+		} else {
+			string res(buf, str_len);
+			return res;
+		}
+	} else {
+		return "";
+	}
 }
 int int_deserializer() {
 	char buf[INT_LEN];
 	int res;
 	int readlen = RPCSTUBSOCKET->read(buf, INT_LEN);
-	if (readlen == 0) return 0;
-	memcpy(&res, buf, INT_LEN);
-	return ntohl(res);
+	if (readlen == 0) {
+		return -1;
+	} else if (readlen < 0) {
+		perror("readerror");
+		exit(1);
+	} else {
+		memcpy(&res, buf, INT_LEN);
+		return ntohl(res);
+	}
 }
-Info Info_serializer() {
-	Info s1;
-	//TODO
+void __string_5_3__deserializer(string arr[5][3]) {
+	for (int i0 = 0; i0 < 5; i0++) {
+		for (int i1 = 0; i1 < 3; i1++) {
+			arr[i0][i1] = string_deserializer();
+		}
+	}
 }
-void __string_3_deserializer(string arr[3]) {
-	//TODO
+void __Person_5__deserializer(Person arr[5]) {
+	for (int i0 = 0; i0 < 5; i0++) {
+		arr[i0] = Person_deserializer();
+	}
+}
+Person Person_deserializer() {
+	Person P1;
+	__string_3__deserializer(P1.first_middle_last_names);
+	float_deserializer();
+	int_deserializer();
+	return P1;
 }
 float float_deserializer() {
 	string s = string_deserializer();
+	if (s.compare("")==0) {
+		return -1;
+	} else {
 	return atof(s.c_str());
+	}
 }
-string string_deserializer() {
-	int str_len = int_deserializer();
-	char buf[str_len];
-	int readlen = RPCSTUBSOCKET->read(buf, str_len);
-	if (readlen == 0) return "";
-	string res(buf, str_len);
-	return res;
+void __string_3__deserializer(string arr[3]) {
+	for (int i0 = 0; i0 < 3; i0++) {
+		arr[i0] = string_deserializer();
+	}
 }
 
 void __echo_person(Person x, Person y) {

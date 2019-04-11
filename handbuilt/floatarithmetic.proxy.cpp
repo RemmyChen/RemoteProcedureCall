@@ -4,7 +4,6 @@
 //   
 ///////////////////////////////////////////
 
-// NOTE: we are only supporting float precision up to 6 decimal digits
 
 #include "floatarithmetic.idl"  // include idl file
 #include "rpcproxyhelper.h"
@@ -77,23 +76,58 @@ void float_pack(struct Buffer_info *b,  float f1) {
 int int_handler() {
   char buf[INT_LEN];
   int res;
-  RPCPROXYSOCKET->read(buf, INT_LEN);
-  memcpy(&res, buf, INT_LEN);
-  return ntohl(res);
+  int n = RPCPROXYSOCKET->read(buf, INT_LEN);
+
+  if (n == 0) {
+    // eof
+    return -1;
+  } else if (n < 0) {
+    // error
+    perror("read error");
+    exit(1);
+  } else {
+    // n > 0
+    memcpy(&res, buf, INT_LEN);
+    return ntohl(res);
+  }
 }
+
 
 string string_handler() {
   int str_len = int_handler();
 
-  char buf[str_len];
-  RPCPROXYSOCKET->read(buf, str_len);
-  string res(buf, str_len);
-  return res;
+  if (str_len > 0) {
+    char buf[str_len];
+    int n = RPCPROXYSOCKET->read(buf, str_len);
+
+    if (n == 0) {
+      // eof
+      return "";
+    } else if (n < 0) {
+      // error
+      perror("read error");
+      exit(1);
+    } else {
+      // n > 0
+      string res(buf, str_len);
+      return res;
+    }
+  } else {
+    // eof on the previous int read
+    return "";
+  }
 }
+
 
 float float_handler() {
   string s = string_handler();
-  return atof(s.c_str());
+
+  if (s.compare("") == 0) {
+    // eof on the previous string read
+    return -1;
+  } else {
+    return atof(s.c_str());
+  }
 }
 
 ///////////////////////////////

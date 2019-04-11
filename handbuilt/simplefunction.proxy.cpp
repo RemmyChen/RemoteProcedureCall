@@ -1,21 +1,21 @@
-///////////////////////////////////////////
+// --------------------------------------------------------------
 //
-//    strings.proxy.cpp 
-//   
-///////////////////////////////////////////
-#include <string>
-using namespace std;
-#include "strings.idl"   // include the idl file
+//                        simplefunction.proxy.cpp
+//
+// --------------------------------------------------------------
 
+#include "simplefunction.idl"  // include idl file
 #include "rpcproxyhelper.h"
 #include <cstdio>
 #include <cstring>
 #include "c150debug.h"
 
 #include <iostream>   // std::cout
+#include <string>     // std::string, std::to_string
 
 
 using namespace C150NETWORK;  // for all the comp150 utilities 
+using namespace std;
 
 
 #define INT_LEN 4
@@ -115,55 +115,60 @@ string string_handler() {
 ///////////////////////////////
 //    call functions (remote)
 ///////////////////////////////
-string upcase(string s) {
+
+void func1() {
   // construct msg
   struct Buffer_info b;
   b.buf = (char*) malloc(1);
   b.buf_len = 0;
 
-  string_pack(&b, "upcase");
-  string_pack(&b, s);
+  string_pack(&b, "func1");
 
   // send function signature and params
   RPCPROXYSOCKET->write(b.buf, b.buf_len);
 
   string res = string_handler();
-  return res;
+
+  if (res.compare("DONE")!= 0) {
+    throw C150Exception("simplefunction.proxy: func1() received invalid response from the server");
+  }
 }
 
 
-string concat(string s, string t) {
-    // construct msg
-  struct Buffer_info b;
-  b.buf = (char*) malloc(1);
-  b.buf_len = 0;
-
-  string_pack(&b, "concat");
-  string_pack(&b, s);
-  string_pack(&b, t);
-
-  // send function signature and params
-  RPCPROXYSOCKET->write(b.buf, b.buf_len);
-
-  string res = string_handler();
-  return res;
-}
-
-
-string concat3(string s, string t, string u) {
+void func2() {
   // construct msg
   struct Buffer_info b;
   b.buf = (char*) malloc(1);
   b.buf_len = 0;
 
-  string_pack(&b, "concat3");
-  string_pack(&b, s);
-  string_pack(&b, t);
-  string_pack(&b, u);
+  string_pack(&b, "func2");
 
   // send function signature and params
   RPCPROXYSOCKET->write(b.buf, b.buf_len);
 
   string res = string_handler();
-  return res;
+
+  if (res.compare("DONE")!= 0) {
+    throw C150Exception("simplefunction.proxy: func2() received invalid response from the server");
+  }
 }
+
+
+void func3() {
+  // construct msg
+  struct Buffer_info b;
+  b.buf = (char*) malloc(1);
+  b.buf_len = 0;
+
+  string_pack(&b, "func3");
+
+  // send function signature and params
+  RPCPROXYSOCKET->write(b.buf, b.buf_len);
+
+  string res = string_handler();
+
+  if (res.compare("DONE")!= 0) {
+    throw C150Exception("simplefunction.proxy: func3() received invalid response from the server");
+  }
+}
+

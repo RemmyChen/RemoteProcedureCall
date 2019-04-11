@@ -44,21 +44,6 @@ void int_pack(struct Buffer_info *b,  int i1) {
   b->buf_len = new_buf_len;
 }
 
-void float_pack(struct Buffer_info *b,  float f1) {
-  float converted = htonl(f1);
-  int new_buf_len; 
-  char *new_buf;
-
-  new_buf_len= b->buf_len + FLOAT_LEN;
-  new_buf = (char*)malloc(new_buf_len);
-  memcpy(new_buf, b->buf, b->buf_len);
-  memcpy(new_buf+b->buf_len, (char *)&converted, FLOAT_LEN);
-  free(b->buf);
-
-  b->buf = new_buf;
-  b->buf_len = new_buf_len;
-}
-
 void string_pack(struct Buffer_info *b, string s) {
   int_pack(b, s.length());
 
@@ -74,6 +59,12 @@ void string_pack(struct Buffer_info *b, string s) {
   b->buf = new_buf;
   b->buf_len = new_buf_len;
 }
+
+void float_pack(struct Buffer_info *b,  float f1) {
+  string s = to_string(f1);
+  string_pack(b, s);
+}
+
 
 void string_5_3_pack(struct Buffer_info *b,  string arr[5][3]) {
   for (int i=0; i<5; i++) {
@@ -115,30 +106,57 @@ void Info_pack(struct Buffer_info *b, Info i1) {
 int int_handler() {
   char buf[INT_LEN];
   int res;
-  int readlen = RPCSTUBSOCKET->read(buf, INT_LEN);
-  if (readlen == 0) return 0;
-  memcpy(&res, buf, INT_LEN);
-  return ntohl(res);
+  int n = RPCSTUBSOCKET->read(buf, INT_LEN);
+
+  if (n == 0) {
+    // eof
+    return -1;
+  } else if (n < 0) {
+    // error
+    perror("read error");
+    exit(1);
+  } else {
+    // n > 0
+    memcpy(&res, buf, INT_LEN);
+    return ntohl(res);
+  }
 }
 
-
-float float_handler() {
-  char buf[FLOAT_LEN];
-  float res;
-  int readlen = RPCSTUBSOCKET->read(buf, FLOAT_LEN);
-  if (readlen == 0) return 0;
-  memcpy(&res, buf, FLOAT_LEN);
-  return ntohl(res);
-}
 
 string string_handler() {
   int str_len = int_handler();
 
-  char buf[str_len];
-  int readlen = RPCSTUBSOCKET->read(buf, str_len);
-  if (readlen == 0) return "";
-  string res(buf, str_len);
-  return res;
+  if (str_len > 0) {
+    char buf[str_len];
+    int n = RPCSTUBSOCKET->read(buf, str_len);
+
+    if (n == 0) {
+      // eof
+      return "";
+    } else if (n < 0) {
+      // error
+      perror("read error");
+      exit(1);
+    } else {
+      // n > 0
+      string res(buf, str_len);
+      return res;
+    }
+  } else {
+    // eof on the previous int read
+    return "";
+  }
+}
+
+
+float float_handler() {
+  string s = string_handler();
+  if (s.compare("") == 0) {
+    // eof on the previous string read
+    return -1;
+  } else {
+    return atof(s.c_str());
+  }
 }
 
 void string_5_3_handler(string arr[5][3]) {
@@ -189,7 +207,6 @@ void __echo(Info x, Info y) {
   b.buf_len = 0;
   Info_pack(&b, res);
   RPCSTUBSOCKET->write(b.buf, b.buf_len);
-  free(b.buf); //  
 }
 
 
@@ -201,7 +218,6 @@ void __echo_person(Person x, Person y) {
   b.buf_len = 0;
   Person_pack(&b, res);
   RPCSTUBSOCKET->write(b.buf, b.buf_len);
-  free(b.buf); //  
 }
 
 
@@ -213,9 +229,13 @@ void dispatchFunction() {
 
   if (!RPCSTUBSOCKET -> eof()) {
     string func_name = string_handler();
+    // check if eof was reached
+    // NOTE: The EOF flag is only set once a read tries to read past the end of the file.
     if (func_name.compare("")==0) {
-        return;
+      return;
     }
+
+    
     if (func_name.compare("echo")==0) {
       Info x = Info_handler();
       Info y = Info_handler();
@@ -226,7 +246,6 @@ void dispatchFunction() {
       __echo_person(x, y);
     } else {
       printf("BAD function\n");
-      // need to call some handler to read in the rest 
     }
   }
 

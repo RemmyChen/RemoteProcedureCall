@@ -57,21 +57,37 @@ int int_deserializer() {
 	char buf[INT_LEN];
 	int res;
 	int readlen = RPCSTUBSOCKET->read(buf, INT_LEN);
-	if (readlen == 0) return 0;
-	memcpy(&res, buf, INT_LEN);
-	return ntohl(res);
+	if (readlen == 0) {
+		return -1;
+	} else if (readlen < 0) {
+		perror("readerror");
+		exit(1);
+	} else {
+		memcpy(&res, buf, INT_LEN);
+		return ntohl(res);
+	}
 }
 string string_deserializer() {
 	int str_len = int_deserializer();
-	char buf[str_len];
-	int readlen = RPCSTUBSOCKET->read(buf, str_len);
-	if (readlen == 0) return "";
-	string res(buf, str_len);
-	return res;
+	if (str_len > 0) {
+		char buf[str_len];
+		int readlen = RPCSTUBSOCKET->read(buf, str_len);
+		if (readlen == 0) {
+			return "";
+		} else if (readlen < 0) {
+			perror("read error");
+			exit(1);
+		} else {
+			string res(buf, str_len);
+			return res;
+		}
+	} else {
+		return "";
+	}
 }
 
-void __concat(string s, string t) {
-	string res = concat(s, t);
+void __concat3(string s, string t, string u) {
+	string res = concat3(s, t, u);
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
@@ -88,8 +104,8 @@ void __upcase(string s) {
 	RPCSTUBSOCKET->write(b.buf, b.buf_len);
 }
 
-void __concat3(string s, string t, string u) {
-	string res = concat3(s, t, u);
+void __concat(string s, string t) {
+	string res = concat(s, t);
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
@@ -106,20 +122,20 @@ void dispatchFunction() {
 	if (!RPCSTUBSOCKET->eof()) {
 		string func_name = string_deserializer();
 		if (func_name.compare("")==0) return;
-		else if (func_name.compare("concat")==0) {
-			string s = string_deserializer();
-			string t = string_deserializer();
-			__concat(s, t);
-		}
-		else if (func_name.compare("upcase")==0) {
-			string s = string_deserializer();
-			__upcase(s);
-		}
 		else if (func_name.compare("concat3")==0) {
 			string s = string_deserializer();
 			string t = string_deserializer();
 			string u = string_deserializer();
 			__concat3(s, t, u);
+		}
+		else if (func_name.compare("upcase")==0) {
+			string s = string_deserializer();
+			__upcase(s);
+		}
+		else if (func_name.compare("concat")==0) {
+			string s = string_deserializer();
+			string t = string_deserializer();
+			__concat(s, t);
 		}
 		else {
 			printf("BAD FUNCTION");

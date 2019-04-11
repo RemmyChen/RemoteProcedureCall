@@ -57,26 +57,43 @@ int int_deserializer() {
 	char buf[INT_LEN];
 	int res;
 	int readlen = RPCPROXYSOCKET->read(buf, INT_LEN);
-	if (readlen == 0) return 0;
-	memcpy(&res, buf, INT_LEN);
-	return ntohl(res);
+	if (readlen == 0) {
+		return -1;
+	} else if (readlen < 0) {
+		perror("readerror");
+		exit(1);
+	} else {
+		memcpy(&res, buf, INT_LEN);
+		return ntohl(res);
+	}
 }
 string string_deserializer() {
 	int str_len = int_deserializer();
-	char buf[str_len];
-	int readlen = RPCPROXYSOCKET->read(buf, str_len);
-	if (readlen == 0) return "";
-	string res(buf, str_len);
-	return res;
+	if (str_len > 0) {
+		char buf[str_len];
+		int readlen = RPCPROXYSOCKET->read(buf, str_len);
+		if (readlen == 0) {
+			return "";
+		} else if (readlen < 0) {
+			perror("read error");
+			exit(1);
+		} else {
+			string res(buf, str_len);
+			return res;
+		}
+	} else {
+		return "";
+	}
 }
 
-string concat(string s, string t) {
+string concat3(string s, string t, string u) {
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
-	string_serializer(&b, "concat");
+	string_serializer(&b, "concat3");
 	string_serializer(&b, s);
 	string_serializer(&b, t);
+	string_serializer(&b, u);
 	RPCPROXYSOCKET->write(b.buf, b.buf_len);
 	free(b.buf);
 	string res = string_deserializer();
@@ -95,14 +112,13 @@ string upcase(string s) {
 	return res;
 }
 
-string concat3(string s, string t, string u) {
+string concat(string s, string t) {
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
-	string_serializer(&b, "concat3");
+	string_serializer(&b, "concat");
 	string_serializer(&b, s);
 	string_serializer(&b, t);
-	string_serializer(&b, u);
 	RPCPROXYSOCKET->write(b.buf, b.buf_len);
 	free(b.buf);
 	string res = string_deserializer();

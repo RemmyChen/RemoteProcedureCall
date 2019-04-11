@@ -1,0 +1,49 @@
+void func1();
+void func2();
+void func3();
+
+
+int intSimple(int x, int y);
+int intArrays(int x[24], int y[24]);
+int intNestedArrays(int x[24], int y[24][15], int z[24][15]);
+
+
+float floatIntSimple(float x, float y, int z);
+float floatIntArrays(float x[7], float y[8], int z[5]);
+float floatIntNestedArrays(float x[24], float y[24][15], int z[24][15]);
+
+
+string stringIntSimple(string x, string y, int z);
+string stringIntArrays(string x[7], string y[8], int z[5]);
+string stringIntNestedArrays(string x[24], string y[24][15], int z[24][15]);
+
+
+struct rectangle {int x; int y;};
+struct Person {string firstname; string lastname; int age;};
+struct ThreePeople {
+  Person p1;
+  Person p2;
+  Person p3;
+};
+struct StructWithArrays {
+  int aNumber;
+  Person people[10];
+};
+struct MT {};
+struct s {
+  int m1[4];
+  int m2[4][10];
+  int m3[4][10][100];
+};
+int structOfInts(rectangle r);
+Person structOfArrayOfStruct(StructWithArrays swa);
+int structOfNestedArrays(s sna);
+int structArrays(int area, rectangle rects[200]);
+Person structMixed(Person x, ThreePeople y, StructWithArrays z);
+Person structMixedArrays(Person x[20], ThreePeople y[10], StructWithArrays z[5]);
+Person structNestedArrays(Person x[24][15]);
+
+
+
+
+

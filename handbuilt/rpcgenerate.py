@@ -84,8 +84,8 @@ Appends functions to proxy file.
 """
 def write_proxy_fn(filename, decls):
     with open(filename+".proxy.cpp", 'a+') as f:
-        typeSet = getTypeSet(decls)
-        writeSerializersAndDeserializers(typeSet, f, "PROXY")
+        typeSet, structArr = getTypeSet(decls)
+        writeSerializersAndDeserializers(typeSet, structArr, f, "PROXY")
         for name, sig in decls["functions"].items():
             args = sig["arguments"]
             retType = sig["return_type"]
@@ -96,6 +96,7 @@ def getTypeSet(decls):
     typeSet = set()
     typeSet.add("int") # always need int serializer and deserializer
     typeSet.add("string") # always need string serializer and deserializer
+    structArr = []
     for name, sig in decls["functions"].items():
         args = sig["arguments"]
         for arg in args:
@@ -106,15 +107,18 @@ def getTypeSet(decls):
         if typeOfType == "struct":
             typeSet.add(name)
             members = sig["members"]
+            structDets = {name : {'memName' : [], 'memType' : []}}
             for member in members:
                 typeSet.add(member["type"])
+                structDets[name]["memName"].append(member["type"])
+                structDetsname]["memType"].append(member["name"])
+            structArr.append(structDets)
         elif typeOfType == "array":
             typeSet.add(name)
             typeSet.add(sig["member_type"])
-    return typeSet
+    return typeSet, structArr
 
-
-def writeSerializersAndDeserializers(typeSet, f, stubOrProxy):
+def writeSerializersAndDeserializers(typeSet, structArr, f, stubOrProxy):
     serializers = ""
     deserializers = ""
     for typeOfType in typeSet:
@@ -126,7 +130,6 @@ def writeSerializersAndDeserializers(typeSet, f, stubOrProxy):
             deserializers += deserializer
             f.write('%s\n' % deserializerContract)
         elif typeOfType.startswith("__"):
-            print("TODO %s\n" % typeOfType)
             serializer, serializerContract = genArraySerializer(typeOfType)
             serializers += serializer
             f.write('%s\n' % serializerContract)
@@ -135,24 +138,33 @@ def writeSerializersAndDeserializers(typeSet, f, stubOrProxy):
             f.write('%s\n' % deserializerContract)
         else:
             print("TODO %s\n" % typeOfType)
-            serializer, serializerContract = genStructSerializer(typeOfType)
+            serializer, serializerContract = genStructSerializer(typeOfType, structArr)
             serializers += serializer
             f.write('%s\n' % serializerContract)
-            deserializer, deserializerContract = genStructDeserializer(typeOfType)
+            deserializer, deserializerContract = genStructDeserializer(typeOfType, structArr)
             deserializers += deserializer
             f.write('%s\n' % deserializerContract)
     f.write('%s\n' % serializers)
     f.write('%s\n' % deserializers)
 
-def genStructSerializer(typeOfType):
+def genStructSerializer(typeOfType, structArr):
+    serializerBody = TODO + ""
+    """
+    TO FIX
+    memNames = structArr[typeOfType]["memName"]
+    memTypes = structArr[typeOfType]["memType"]
+    for memName, memType in zip(memNames, memTypes):
+        serializerBody += memType + "_serializer(b, " + "." + memName + ");\n"
+    """
     serializer = ("void " + typeOfType + "_serializer(struct Buffer_info *b, " + typeOfType + " " + typeOfType[0] + "1) " + OPEN + 
-                    TODO + CLOSE)
+                    serializerBody + CLOSE)
     serializerContract = "void " + typeOfType + "_serializer(struct Buffer_info *b, " + typeOfType + " " + typeOfType[0] + "1);\n"
     return serializer, serializerContract
 
-def genStructDeserializer(typeOfType):
+def genStructDeserializer(typeOfType, structArr):
+    deserializerBody = TODO
     deserializer = (typeOfType + " " + typeOfType + "_serializer() " + OPEN + 
-                    "\t" + typeOfType + " s1;\n" + TODO + CLOSE)
+                    "\t" + typeOfType + " s1;\n" + deserializerBody + CLOSE)
     deserializerContract = typeOfType + " " + typeOfType + "_serializer();\n"
     return deserializer, deserializerContract
 
@@ -304,8 +316,8 @@ Appends functions to stub file.
 """
 def write_stub_fn(filename, decls):
     with open(filename+".stub.cpp", 'a+') as f:
-        typeSet = getTypeSet(decls)
-        writeSerializersAndDeserializers(typeSet, f, "STUB")
+        typeSet, structArr = getTypeSet(decls)
+        writeSerializersAndDeserializers(typeSet, structArr, f, "STUB")
         dispatcherDeserializers = ""
         for name, sig in decls["functions"].items():
             args = sig["arguments"]

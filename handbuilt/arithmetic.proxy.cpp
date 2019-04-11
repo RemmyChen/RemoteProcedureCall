@@ -70,9 +70,20 @@ void string_pack(struct Buffer_info *b, string s) {
 int int_handler() {
   char buf[INT_LEN];
   int res;
-  RPCPROXYSOCKET->read(buf, INT_LEN);
-  memcpy(&res, buf, INT_LEN);
-  return ntohl(res);
+  int n = RPCPROXYSOCKET->read(buf, INT_LEN);
+
+  if (n == 0) {
+    // eof
+    return -1;
+  } else if (n < 0) {
+    // error
+    perror("read error");
+    exit(1);
+  } else {
+    // n > 0
+    memcpy(&res, buf, INT_LEN);
+    return ntohl(res);
+  }
 }
 
 
@@ -83,7 +94,7 @@ int int_handler() {
 int add(int x, int y) {
   // construct msg
   struct Buffer_info b;
-  b.buf = (char*) malloc(10);
+  b.buf = (char*) malloc(1);
   b.buf_len = 0;
 
   string_pack(&b, "add");
@@ -100,7 +111,7 @@ int add(int x, int y) {
 int subtract(int x, int y) {
   // construct msg
   struct Buffer_info b;
-  b.buf = (char*) malloc(10);
+  b.buf = (char*) malloc(1);
   b.buf_len = 0;
 
   string_pack(&b, "subtract");
@@ -118,7 +129,7 @@ int subtract(int x, int y) {
 int multiply(int x, int y) {
   // construct msg
   struct Buffer_info b;
-  b.buf = (char*) malloc(10);
+  b.buf = (char*) malloc(1);
   b.buf_len = 0;
 
   string_pack(&b, "multiply");
