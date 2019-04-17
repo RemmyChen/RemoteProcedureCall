@@ -1,9 +1,9 @@
 # RemoteProcedureCall
 A Remote Procedure Call stub and proxy generator.
 
-The rpcgenerate program was written in python and partially relies on the provided idl_to_json program to parse IDL files. 
+The rpcgenerate program is written in python, partially relies on the provided idl_to_json program to parse IDL files, and generates [name].stub.cpp and [name].proxy.cpp files that are used in remote procedure calls. 
 
-It may handle function calls involving the following types: void, int, float, string, structs, and arrays.
+The rpcgenerate program handles function calls involving the void, int, float, string, struct, and array types, and is machine-independent.
 
 For each function call, we start by sending the function name, which is a string. We send function arguments immediately after we send the function name. We took advantage of the fact that client and server share the secret of a common .idl file, and designed proxies and stubs in such a way that function calls and returns are done symmetrically. More specifically, in each proxy and stub, we include a serializer and a deserializer for each type mentioned in the JSON file. To be clear with our definitions, we define “Serializer for type X” to be a function that turns a value of type X into char* message, and “deserializer for type X” to be a function that turns a char* message back into the actual value. Our algorithm is that the “outer type” (e.g. float array[3][1]) serializer/deserializer delegates all its TCP I/O tasks to the “inner type” (e.g. float array[1]) serializer/deserializer. Similar relationship applies for struct and its fields. The hierarchy keeps going down until we reach the lowest layer -- the primitive types, where all the actual TCP I/Os are done. Since proxy and stub always do serialization and deserialization of function arguments in the same order, they will always agree on the order of fields and interpret corresponding values in the correct order.
 
