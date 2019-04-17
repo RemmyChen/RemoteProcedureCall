@@ -1,9 +1,9 @@
-//simplefunction.stub.cpp
+//testarray2.stub.cpp
 //authors: Jialu Wei, Remmy Chen
 
 #include <string>
 using namespace std;
-#include "simplefunction.idl"
+#include "testarray2.idl"
 #include "rpcstubhelper.h"
 #include <cstdio>
 #include <cstring>
@@ -24,11 +24,21 @@ void int_serializer(struct Buffer_info *b, int i);
 
 int int_deserializer();
 
+void __int_15__serializer(struct Buffer_info *b, int arr[15]);
 
+void __int_15__deserializer(int arr[15]);
+
+void __int_24__serializer(struct Buffer_info *b, int arr[24]);
+
+void __int_24__deserializer(int arr[24]);
 
 void string_serializer(struct Buffer_info *b, string s);
 
 string string_deserializer();
+
+void __int_24_15__serializer(struct Buffer_info *b, int arr[24][15]);
+
+void __int_24_15__deserializer(int arr[24][15]);
 
 void int_serializer(struct Buffer_info *b, int i) {
 	int converted = htonl(i);
@@ -41,6 +51,16 @@ void int_serializer(struct Buffer_info *b, int i) {
 	b->buf = new_buf;
 	b->buf_len = new_buf_len;
 }
+void __int_15__serializer(struct Buffer_info *b, int arr[15]) {
+	for (int i0 = 0; i0 < 15; i0++) {
+		int_serializer(b, arr[i0]);
+	}
+}
+void __int_24__serializer(struct Buffer_info *b, int arr[24]) {
+	for (int i0 = 0; i0 < 24; i0++) {
+		int_serializer(b, arr[i0]);
+	}
+}
 void string_serializer(struct Buffer_info *b, string s) {
 	int_serializer(b, s.length());
 	int new_buf_len;
@@ -51,6 +71,13 @@ void string_serializer(struct Buffer_info *b, string s) {
 	memcpy(new_buf+b->buf_len, s.c_str(), s.length());
 	b->buf = new_buf;
 	b->buf_len = new_buf_len;
+}
+void __int_24_15__serializer(struct Buffer_info *b, int arr[24][15]) {
+	for (int i0 = 0; i0 < 24; i0++) {
+		for (int i1 = 0; i1 < 15; i1++) {
+			int_serializer(b, arr[i0][i1]);
+		}
+}
 }
 
 int int_deserializer() {
@@ -65,6 +92,16 @@ int int_deserializer() {
 	} else {
 		memcpy(&res, buf, INT_LEN);
 		return ntohl(res);
+	}
+}
+void __int_15__deserializer(int arr[15]) {
+	for (int i0 = 0; i0 < 15; i0++) {
+		arr[i0] = int_deserializer();
+	}
+}
+void __int_24__deserializer(int arr[24]) {
+	for (int i0 = 0; i0 < 24; i0++) {
+		arr[i0] = int_deserializer();
 	}
 }
 string string_deserializer() {
@@ -85,34 +122,20 @@ string string_deserializer() {
 		return "";
 	}
 }
-
-void __func2() {
-	func2();
-	string res = "DONE";
-	struct Buffer_info b;
-	b.buf = (char*) malloc(1);
-	b.buf_len = 0;
-	string_serializer(&b, res);
-	RPCSTUBSOCKET->write(b.buf, b.buf_len);
+void __int_24_15__deserializer(int arr[24][15]) {
+	for (int i0 = 0; i0 < 24; i0++) {
+		for (int i1 = 0; i1 < 15; i1++) {
+			arr[i0][i1] = int_deserializer();
+		}
+	}
 }
 
-void __func3() {
-	func3();
-	string res = "DONE";
+void __sqrt(int x[24], int y[24][15], int z[24][15]) {
+	int res = sqrt(x, y, z);
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
-	string_serializer(&b, res);
-	RPCSTUBSOCKET->write(b.buf, b.buf_len);
-}
-
-void __func1() {
-	func1();
-	string res = "DONE";
-	struct Buffer_info b;
-	b.buf = (char*) malloc(1);
-	b.buf_len = 0;
-	string_serializer(&b, res);
+	int_serializer(&b, res);
 	RPCSTUBSOCKET->write(b.buf, b.buf_len);
 }
 
@@ -125,14 +148,14 @@ void dispatchFunction() {
 	if (!RPCSTUBSOCKET->eof()) {
 		string func_name = string_deserializer();
 		if (func_name.compare("")==0) return;
-		else if (func_name.compare("func2")==0) {
-			__func2();
-		}
-		else if (func_name.compare("func3")==0) {
-			__func3();
-		}
-		else if (func_name.compare("func1")==0) {
-			__func1();
+		else if (func_name.compare("sqrt")==0) {
+			int x[24];
+			__int_24__deserializer(x);
+			int y[24][15];
+			__int_24_15__deserializer(y);
+			int z[24][15];
+			__int_24_15__deserializer(z);
+			__sqrt(x, y, z);
 		}
 		else {
 			printf("BAD FUNCTION");

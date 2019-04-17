@@ -3,3 +3,5 @@ struct s {
   int m2[4][10];
   int m3[4][10][100];
 };
+
+s echo_s(s vl1, s vl2);

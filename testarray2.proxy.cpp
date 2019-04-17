@@ -1,9 +1,9 @@
-//simplefunction.proxy.cpp
+//testarray2.proxy.cpp
 //authors: Jialu Wei, Remmy Chen
 
 #include <string>
 using namespace std;
-#include "simplefunction.idl"
+#include "testarray2.idl"
 #include "rpcproxyhelper.h"
 #include <cstdio>
 #include <cstring>
@@ -24,11 +24,21 @@ void int_serializer(struct Buffer_info *b, int i);
 
 int int_deserializer();
 
+void __int_15__serializer(struct Buffer_info *b, int arr[15]);
 
+void __int_15__deserializer(int arr[15]);
+
+void __int_24__serializer(struct Buffer_info *b, int arr[24]);
+
+void __int_24__deserializer(int arr[24]);
 
 void string_serializer(struct Buffer_info *b, string s);
 
 string string_deserializer();
+
+void __int_24_15__serializer(struct Buffer_info *b, int arr[24][15]);
+
+void __int_24_15__deserializer(int arr[24][15]);
 
 void int_serializer(struct Buffer_info *b, int i) {
 	int converted = htonl(i);
@@ -41,6 +51,16 @@ void int_serializer(struct Buffer_info *b, int i) {
 	b->buf = new_buf;
 	b->buf_len = new_buf_len;
 }
+void __int_15__serializer(struct Buffer_info *b, int arr[15]) {
+	for (int i0 = 0; i0 < 15; i0++) {
+		int_serializer(b, arr[i0]);
+	}
+}
+void __int_24__serializer(struct Buffer_info *b, int arr[24]) {
+	for (int i0 = 0; i0 < 24; i0++) {
+		int_serializer(b, arr[i0]);
+	}
+}
 void string_serializer(struct Buffer_info *b, string s) {
 	int_serializer(b, s.length());
 	int new_buf_len;
@@ -51,6 +71,13 @@ void string_serializer(struct Buffer_info *b, string s) {
 	memcpy(new_buf+b->buf_len, s.c_str(), s.length());
 	b->buf = new_buf;
 	b->buf_len = new_buf_len;
+}
+void __int_24_15__serializer(struct Buffer_info *b, int arr[24][15]) {
+	for (int i0 = 0; i0 < 24; i0++) {
+		for (int i1 = 0; i1 < 15; i1++) {
+			int_serializer(b, arr[i0][i1]);
+		}
+}
 }
 
 int int_deserializer() {
@@ -65,6 +92,16 @@ int int_deserializer() {
 	} else {
 		memcpy(&res, buf, INT_LEN);
 		return ntohl(res);
+	}
+}
+void __int_15__deserializer(int arr[15]) {
+	for (int i0 = 0; i0 < 15; i0++) {
+		arr[i0] = int_deserializer();
+	}
+}
+void __int_24__deserializer(int arr[24]) {
+	for (int i0 = 0; i0 < 24; i0++) {
+		arr[i0] = int_deserializer();
 	}
 }
 string string_deserializer() {
@@ -85,40 +122,24 @@ string string_deserializer() {
 		return "";
 	}
 }
-
-void func2() {
-	struct Buffer_info b;
-	b.buf = (char*) malloc(1);
-	b.buf_len = 0;
-	string_serializer(&b, "func2");
-	RPCPROXYSOCKET->write(b.buf, b.buf_len);
-	string res = string_deserializer();
-	if (res.compare("DONE")!=0) {
-		throw C150Exception("simplefunction.proxy: func1() received invalid response from the server");
+void __int_24_15__deserializer(int arr[24][15]) {
+	for (int i0 = 0; i0 < 24; i0++) {
+		for (int i1 = 0; i1 < 15; i1++) {
+			arr[i0][i1] = int_deserializer();
+		}
 	}
 }
 
-void func3() {
+int sqrt(int x[24], int y[24][15], int z[24][15]) {
 	struct Buffer_info b;
 	b.buf = (char*) malloc(1);
 	b.buf_len = 0;
-	string_serializer(&b, "func3");
+	string_serializer(&b, "sqrt");
+	__int_24__serializer(&b, x);
+	__int_24_15__serializer(&b, y);
+	__int_24_15__serializer(&b, z);
 	RPCPROXYSOCKET->write(b.buf, b.buf_len);
-	string res = string_deserializer();
-	if (res.compare("DONE")!=0) {
-		throw C150Exception("simplefunction.proxy: func1() received invalid response from the server");
-	}
-}
-
-void func1() {
-	struct Buffer_info b;
-	b.buf = (char*) malloc(1);
-	b.buf_len = 0;
-	string_serializer(&b, "func1");
-	RPCPROXYSOCKET->write(b.buf, b.buf_len);
-	string res = string_deserializer();
-	if (res.compare("DONE")!=0) {
-		throw C150Exception("simplefunction.proxy: func1() received invalid response from the server");
-	}
+	int res = int_deserializer();
+	return res;
 }
 

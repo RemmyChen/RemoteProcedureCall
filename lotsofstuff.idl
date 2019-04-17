@@ -44,7 +44,4 @@ struct s {
   int m3[4][10][100];
 };
 
-s useStructWithArray(s);
-
-string dealWithStrings(string s, string l[8]);
 

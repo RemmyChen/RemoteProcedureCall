@@ -9,7 +9,10 @@ TODO = "\t" + "//TODO\n"
 OPEN = "{\n"
 CLOSE = "}\n"
 
-def setup():
+"""
+Calls the necessary functions to generate proxy and stub files.
+"""
+def run():
     filename, decls = parse_idl()
     filename = filename.split(".")[0]
     write_header(filename, "proxy")
@@ -17,6 +20,9 @@ def setup():
     write_proxy_fn(filename, decls)
     write_stub_fn(filename, decls)
 
+"""
+Parses declarations in the idl file into a dictionary.
+"""
 def parse_idl():
     IDL_TO_JSON_EXECUTABLE = './idl_to_json'
     try:
@@ -49,7 +55,7 @@ def parse_idl():
         sys.exit()
 
 """
-Writes header text to file, creating the file if
+Writes header text to stub or proxy file, creating the file if
 it doesn't exist, overwriting the file if it already
 exists.
 """
@@ -78,8 +84,8 @@ def write_header(filename, stubOrProxy):
 Appends functions to proxy file.
 3 types of functions:
     - remote calls 
-    - deserializers (handlers)
-    - serializers (pack)
+    - deserializers
+    - serializers
 """
 def write_proxy_fn(filename, decls):
     with open(filename+".proxy.cpp", 'a+') as f:
@@ -91,6 +97,14 @@ def write_proxy_fn(filename, decls):
             writeFnRemoteCalls(name, args, retType, f)
     f.close()
 
+"""
+Gets the types specified in function arguments, function return, and
+structs, including struct members. 
+3 categories of types:
+    - primitives : void, string, int, float
+    - type in arrays : primitive or struct
+    - structs : user-defined
+"""
 def getTypeSet(decls):
     typeSet = set()
     typeSet.add("int") # always need int serializer and deserializer
@@ -117,6 +131,11 @@ def getTypeSet(decls):
             typeSet.add(sig["member_type"])
     return typeSet, structArr
 
+"""
+Writes code for serializers and deserializers into given file. 
+Forward declarations are included so as not have to be 
+concerned about the order of function definition.
+"""
 def writeSerializersAndDeserializers(typeSet, structArr, f, stubOrProxy):
     serializers = ""
     deserializers = ""
@@ -145,6 +164,11 @@ def writeSerializersAndDeserializers(typeSet, structArr, f, stubOrProxy):
     f.write('%s\n' % serializers)
     f.write('%s\n' % deserializers)
 
+"""
+Generates serializer code for given struct name in stub and proxy
+files, excluding the serializer code for its members - this is done in 
+writeSerializersAndDeserializers to avoid redundant code.
+"""
 def genStructSerializer(typeOfType, structArr):
     serializerBody = ""
     for struct in structArr:
@@ -159,25 +183,35 @@ def genStructSerializer(typeOfType, structArr):
     serializerContract = "void " + typeOfType + "_serializer(struct Buffer_info *b, " + typeOfType + " " + typeOfType[0] + "1);\n"
     return serializer, serializerContract
 
+"""
+Generates deserializer code for given struct type name in stub and
+proxy files, excluding the deserializer code for its members - this 
+is done in writeSerializersAndDeserializers to avoid redundant code.
+"""
 def genStructDeserializer(typeOfType, structArr):
     var = typeOfType[0] + "1"
-    deserializerBody = "\t" + typeOfType + " " + var + ";\n"
+    deserializerBody = ""
     for struct in structArr:
         if struct["structName"] == typeOfType:
             memNames = struct["memName"]
             memTypes = struct["memType"]
             for memName, memType in zip(memNames, memTypes):
-                args = var + "." + memName
                 if memType == "string" or memType == "int" or memType == "float":
-                    args = ""
-                memType = memType.replace('][', '_').replace('[', '_').replace(']', '_')
-                deserializerBody += "\t" + memType + "_deserializer(" + args  + ");\n"
-    deserializerBody += "\treturn " + var + ";\n"
-    deserializer = (typeOfType + " " + typeOfType + "_deserializer() " + OPEN + 
+                    deserializerBody += "\t" + var + "->" + memName + " = "  + memType + "_deserializer();\n"
+                else:
+                    if '[' in memType:
+                        memType = memType.replace('][', '_').replace('[', '_').replace(']', '_')
+                        deserializerBody += "\t" + memType + "_deserializer(" + var + "->" + memName  + ");\n"
+                    else:
+                        deserializerBody += "\t" + memType + "_deserializer(&(" + var + "->" + memName  + "));\n"
+    deserializer = ("void " + typeOfType + "_deserializer(" + typeOfType + " *" + var + ") " + OPEN + 
                     deserializerBody + CLOSE)
-    deserializerContract = typeOfType + " " + typeOfType + "_deserializer();\n"
+    deserializerContract = "void " + typeOfType + "_deserializer(" + typeOfType + " *" + var + ");\n"
     return deserializer, deserializerContract
 
+"""
+Generates serializer code for given array type in stub and proxy files.
+"""
 def genArraySerializer(typeOfType):
     arrSizesString = '[' + typeOfType.split('[', 1)[1]
     typeOfType = typeOfType.replace('][', '_').replace('[', '_').replace(']', '_')
@@ -205,6 +239,9 @@ def genArraySerializer(typeOfType):
     serializerContract = "void " + typeOfType + "_serializer(struct Buffer_info *b, " + arrType + " arr" + arrSizesString + ");\n"
     return serializer, serializerContract
 
+"""
+Generates deserializer code for given array type in stub and proxy files.
+"""
 def genArrayDeserializer(typeOfType):
     arrSizesString = '[' + typeOfType.split('[', 1)[1]
     typeOfType = typeOfType.replace('][', '_').replace('[', '_').replace(']', '_')
@@ -223,7 +260,10 @@ def genArrayDeserializer(typeOfType):
     arrVarsString = ""
     for var in varsList:
         arrVarsString += '[' + var + ']'
-    deserializerBody += tab + "\tarr" + arrVarsString + " = " + arrType + "_deserializer();\n"
+    if arrType == "string" or arrType == "float" or arrType == "int":
+        deserializerBody += tab + "\tarr" + arrVarsString + " = " + arrType + "_deserializer();\n"
+    else: # definitely a struct (as the most underlying type of an array)
+        deserializerBody += tab + "\t" + arrType + "_deserializer(&(arr" + arrVarsString  + "));\n"
     for size in arrSizes:
         deserializerBody += (tab + "}\n")
         tab = tab[:-1]
@@ -232,6 +272,9 @@ def genArrayDeserializer(typeOfType):
     deserializerContract = "void " + typeOfType + "_deserializer(" + arrType + " arr" + arrSizesString + ");\n"
     return deserializer, deserializerContract
 
+"""
+Generates serializer code for primitives in stub and proxy files.
+"""
 def genBuiltInSerializer(typeOfType):
     serializer = ""
     serializerContract = ""
@@ -244,7 +287,7 @@ def genBuiltInSerializer(typeOfType):
                         "\tnew_buf = (char*) malloc(new_buf_len);\n"
                         "\tmemcpy(new_buf, b->buf, b->buf_len);\n"
                         "\tmemcpy(new_buf+b->buf_len, (char*)&converted, INT_LEN);\n"
-                        "\tfree(b->buf);\n"
+                        #"\tfree(b->buf);\n"
                         "\tb->buf = new_buf;\n"
                         "\tb->buf_len = new_buf_len;\n" + CLOSE)
         serializerContract = "void int_serializer(struct Buffer_info *b, int i);\n"
@@ -257,7 +300,7 @@ def genBuiltInSerializer(typeOfType):
                         "\tnew_buf = (char*) malloc(new_buf_len);\n"
                         "\tmemcpy(new_buf, b->buf, b->buf_len);\n"
                         "\tmemcpy(new_buf+b->buf_len, s.c_str(), s.length());\n"
-                        "\tfree(b->buf);\n"
+                        #"\tfree(b->buf);\n"
                         "\tb->buf = new_buf;\n"
                         "\tb->buf_len = new_buf_len;\n" + CLOSE)
         serializerContract = "void string_serializer(struct Buffer_info *b, string s);\n"
@@ -268,6 +311,9 @@ def genBuiltInSerializer(typeOfType):
         serializerContract = "void float_serializer(struct Buffer_info *b, float f);\n"
     return serializer, serializerContract
 
+"""
+Generates deserializer code for primitives in stub and proxy files.
+"""
 def genBuiltInDeserializer(typeOfType, stubOrProxy):
     deserializer = ""
     deserializerContract = ""
@@ -319,12 +365,33 @@ def genBuiltInDeserializer(typeOfType, stubOrProxy):
         deserializerContract = "float float_deserializer();\n"
     return deserializer, deserializerContract
 
+"""
+Generates remote function calls in proxy files.
+"""
 def writeFnRemoteCalls(typeOfType, args, retType, f):
-    argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
-    serializeargs = ''.join([a["type"] + "_serializer(&b, " + a["name"] + ");\n\t" for a in args])
-    fnend = ("\t" + retType + " res = " + retType + "_deserializer();\n"
+    argstring = ""
+    serializeargs = ""
+    comma = ""
+    for a in args:
+        argType = a["type"]
+        argName = a["name"]
+        argTypeClean = ""
+        if '[' in argType:
+            argInnerType, argSizeBracket = arrTypeParse(argType)
+            argstring += comma + argInnerType + ' ' + argName + argSizeBracket
+        else:
+            argstring += comma + argType + ' ' + argName
+        argType = argType.replace('][', '_').replace(']', '_').replace('[', '_')
+        serializeargs += argType + "_serializer(&b, " + argName + ");\n\t"
+        comma = ", "
+    
+    fnend = ("\t" + retType + " res;\n"
+             "\t" + retType + "_deserializer(&res);\n"
             "\treturn res;\n")
-    if retType == "void":
+    if retType == "string" or retType == "int" or retType == "float":
+        fnend = ("\t" + retType + " res = " + retType + "_deserializer();\n"
+                "\treturn res;\n")
+    elif retType == "void":
         fnend = ("\tstring res = string_deserializer();\n"
                  "\tif (res.compare(\"DONE\")!=0) {\n"
                  "\t\tthrow C150Exception(\"simplefunction.proxy: func1() received invalid response from the server\");\n"
@@ -335,11 +402,21 @@ def writeFnRemoteCalls(typeOfType, args, retType, f):
                 "\tstring_serializer(&b, \"" + typeOfType + "\");\n"
                 "\t" + serializeargs +
                 "RPCPROXYSOCKET->write(b.buf, b.buf_len);\n"
-                "\tfree(b.buf);\n"
+                #"\tfree(b.buf);\n"
                 + fnend)
     fnremotecall = retType + " " + typeOfType + "(" + argstring + ") " + OPEN + fnbody + CLOSE
     f.write('%s\n' % fnremotecall)
 
+"""
+Parses array types. In idl_to_json, the formatting
+of arrays appears as something like __int[10][4]. 
+Something like int and [10][4] are returned.
+"""
+def arrTypeParse(argType):
+    argTypeClean = argType[2:]
+    argInnerType = argTypeClean.split('[', 1)[0]
+    argSizeBracket = '[' + argTypeClean.split('[', 1)[1]
+    return argInnerType, argSizeBracket
 
 """
 Appends functions to stub file.
@@ -361,28 +438,45 @@ def write_stub_fn(filename, decls):
             argnamestring = ', '.join([a["name"] for a in args])
             argDeserializers = ""
             for arg in args:
-                argDeserializers += ("\t\t\t" + arg["type"] + " " + arg["name"] + " = " + arg["type"] + "_deserializer();\n")
+                if arg["type"] == "string" or arg["type"] == "int" or arg["type"] == "float":
+                    argDeserializers += ("\t\t\t" + arg["type"] + " " + arg["name"] + " = " + arg["type"] + "_deserializer();\n")
+                elif '[' in arg["type"]:
+                    argInnerType, argSizeBracket = arrTypeParse(arg["type"])
+                    argDeserializers += ("\t\t\t" + argInnerType + " " + arg["name"] + argSizeBracket + ";\n\t\t\t" + arg["type"].replace('][', '_').replace(']', '_').replace('[', '_') + "_deserializer(" + arg["name"] + ");\n")
+                else:
+                    argDeserializers += ("\t\t\t" + arg["type"] + " " + arg["name"] + ";\n\t\t\t" + arg["type"].replace('][', '_').replace(']', '_').replace('[', '_') + "_deserializer(&(" + arg["name"] + "));\n")
             argDeserializers += "\t\t\t__" + name + "(" + argnamestring + ");\n"
             dispatcherDeserializers += ("\t\telse if (func_name.compare(\"" + name + "\")==0) " + OPEN + argDeserializers + "\t\t" + CLOSE)
-        badfn = "void __badFunction(const char *functionName) " + OPEN + "\tchar doneBuffer[5] = \"BAD\";\n\tRPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);\n" + CLOSE
-        f.write('%s\n' % badfn)
         dispatcherbody = ("\tif (!RPCSTUBSOCKET->eof()) " + OPEN +
                             "\t\tstring func_name = string_deserializer();\n"
                             "\t\tif (func_name.compare(\"\")==0) return;\n" + 
                             dispatcherDeserializers + 
-                            "\t\telse " + OPEN + "\t\t\tprintf(\"BAD FUNCTION\");\n\t\t"  + CLOSE +
+                            "\t\telse " + OPEN + "\t\t\tthrow C150Exception(\"Error: invalid function.\");\n\t\t"  + CLOSE +
                             "\t" + CLOSE)
         dispatcher = "void dispatchFunction() " + OPEN + dispatcherbody + CLOSE
         f.write('%s\n' % dispatcher)
     f.close()
 
+"""
+Generates local function calls in stub files.
+"""
 def writeFnLocalCalls(typeOfType, args, retType, f):
-    argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
+    argstring = ""
+    comma = ""
+    for a in args:
+        argType = a["type"]
+        argName = a["name"]
+        if '[' in argType:
+            argInnerType, argSizeBracket = arrTypeParse(argType)
+            argstring += comma + argInnerType + ' ' + argName + argSizeBracket
+        else:
+            argstring += comma + argType + ' ' + argName
+        comma = ", "
     argnamestring = ', '.join([a["name"] for a in args])
     fncall = "\t" + retType + " res = " + typeOfType + "(" + argnamestring + ");\n"
     fncall2 = "\t" + retType + "_serializer(&b, res);\n"
     if retType == "void":
-        fncall = "\tstring res = \"DONE\";\n"
+        fncall = "\t" + typeOfType + "(" + argnamestring + ");\n\tstring res = \"DONE\";\n"
         fncall2 = "\tstring_serializer(&b, res);\n"
     fnbody = ("\tstruct Buffer_info b;\n"
                 "\tb.buf = (char*) malloc(1);\n"
@@ -393,7 +487,7 @@ def writeFnLocalCalls(typeOfType, args, retType, f):
     f.write('%s\n' % fnlocalcall)
 
 if __name__ == "__main__":
-    setup()
+    run()
     
 
 
